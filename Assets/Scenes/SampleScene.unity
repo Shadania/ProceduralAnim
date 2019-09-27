@@ -236,14 +236,18 @@ MonoBehaviour:
   - Axis: 3
     minAmt: 0
     maxAmt: 10
+    restingAmt: 10
   - Axis: 4
     minAmt: 0
     maxAmt: 10
+    restingAmt: 0
   - Axis: 5
     minAmt: 0
     maxAmt: 10
+    restingAmt: 0
   _name: 1BoneHead
   _rotSpeed: 5
+  _returnToRestSpeed: 1
 --- !u!114 &296311290
 MonoBehaviour:
   m_ObjectHideFlags: 0
