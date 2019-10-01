@@ -5,14 +5,14 @@ using UnityEngine;
 public class TestScript : MonoBehaviour
 {
 #pragma warning disable 414
-    [SerializeField] private IKfPA_System_SingleBone _singleBoneTestSystem = null;
+    [SerializeField] private Axon_System_SingleBone _singleBoneTestSystem = null;
     [SerializeField] private float _lateStartDelay = 5.0f;
 #pragma warning restore
 
 
     private void Start()
     {
-        IKfPA_Settings.SetLogSetting(IKfPA_Settings.LogSetting.Log);
+        Axon_Settings.SetLogSetting(Axon_Settings.LogSetting.Log);
         StartCoroutine(WaitLateStart(_lateStartDelay));
     }
 

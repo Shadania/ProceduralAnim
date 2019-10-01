@@ -2,15 +2,15 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class IKfPA_System_SingleBone : IKfPA_System
+public sealed class Axon_System_SingleBone : Axon_System
 {
     [Header("Single Bone System Parameters")]
-    [SerializeField] private IKfPA_Joint _bone = null;
+    [SerializeField] private Axon_Joint _bone = null;
 
     override protected void MoveToTarget()
     {
         var targetpos = _target.transform.position;
-        var endpos = _endPoint.position;
+        var endpos = _bone.EndPoint.position;
         var basePos = _bone.transform.position;
 
         var targetVec = targetpos - basePos;
@@ -64,7 +64,7 @@ public sealed class IKfPA_System_SingleBone : IKfPA_System
     }
     override protected bool CheckSystemValid()
     {
-        if (_bone == null || _endPoint == null)
+        if (_bone == null || _bone.EndPoint == null)
         {
             Debug.LogError($"System {_name} does not have all its bones set! It will not do anything.", this);
             return false;

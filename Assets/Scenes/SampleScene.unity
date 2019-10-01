@@ -230,18 +230,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _maxAngularSpeed: 150
-  _weightPercent: 50
-  _usesGravity: 1
+  _endPoint: {fileID: 1481807853}
+  _weight: 1
+  _doesDroop: 1
   _degreesOfFreedom:
-  - Axis: 3
+  - Axis: 8
     minAmt: 0
     maxAmt: 10
     restingAmt: 10
-  - Axis: 4
+  - Axis: 16
     minAmt: 0
     maxAmt: 10
     restingAmt: 0
-  - Axis: 5
+  - Axis: 32
     minAmt: 0
     maxAmt: 10
     restingAmt: 0
@@ -265,7 +266,6 @@ MonoBehaviour:
   _name: newSys
   _minTargetRange: 0
   _maxTargetRange: 0.5
-  _endPoint: {fileID: 1481807853}
   _interpMode: 1
   _orientEndBoneToTarget: 0
   _endBoneOrientation: 2
@@ -531,7 +531,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1237801975}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.91, y: 0.5, z: 3}
+  m_LocalPosition: {x: 0, y: 0, z: 3.596}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_Children: []
   m_Father: {fileID: 0}

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Static class to hold settings for all IKfPA systems
+/// Static class to hold settings for all Axon systems
 /// </summary>
-public sealed class IKfPA_Settings : MonoBehaviour
+public sealed class Axon_Settings : MonoBehaviour
 {
     /// <summary>
     /// Should systems log debug information?
@@ -25,6 +25,14 @@ public sealed class IKfPA_Settings : MonoBehaviour
             return;
         }
         LogSet = logset;
-        Debug.Log("Set IKfPA log  setting to " + (logset == LogSetting.Log ? "log" : "no log"));
+        Debug.Log("Set Axon log  setting to " + (logset == LogSetting.Log ? "log" : "no log"));
+    }
+
+    public static Vector3 Gravity = new Vector3(0, -9.81f, 0);
+
+    public static void SetGravity(Vector3 newGrav)
+    {
+        Gravity = newGrav;
+        Debug.Log($"Set gravity to {newGrav.ToString()}");
     }
 }

@@ -13,12 +13,12 @@ public struct FreedomDegree
 {
     public enum FreedomAxis
     {
-        moveX,
-        moveY,
-        moveZ,
-        rotX,
-        rotY,
-        rotZ
+        moveX = 0x01,
+        moveY = 0x02,
+        moveZ = 0x04,
+        rotX = 0x08,
+        rotY = 0x10,
+        rotZ = 0x20
     }
     [SerializeField] public FreedomAxis Axis;
     [SerializeField] public float minAmt;
@@ -56,22 +56,30 @@ public struct TransformMinimal
 /// A script to enable a joint to be controlled by the IKfPA system.
 /// Has a few physics parameters as well as configurable degrees of freedom.
 /// </summary>
-public class IKfPA_Joint : MonoBehaviour
+public class Axon_Joint : MonoBehaviour
 {
 #pragma warning disable 414
-    // How much degrees can I move per second?
+#pragma warning disable 649
+    [Header("General Axon Joint Settings")]
+    [Tooltip("Max angular speed of this joint in degrees/sec")]
     [SerializeField] private float _maxAngularSpeed = 150.0f;
-    // Simulate the weight of this joint, by how fast it takes on and loses momentum from parents.
-    [SerializeField] private float _weightPercent = 50.0f;
-    [SerializeField] private bool _usesGravity = true;
+    [Tooltip("Transform at the end of this bone, used for physics calculations involving weight, gravity, etc")]
+    [SerializeField] private Transform _endPoint;
+    // Used by System
+    public Transform EndPoint { get { return _endPoint; } }
+
+    [Tooltip("How heavy is this object? Determines limb droop if gravity is turned on, propagation of root motion to this bone...")]
+    [SerializeField] private float _weight = 50.0f;
+    [Tooltip("Will this bone droop according to gravity? Uses the weight param and the endpoint of the bone")]
+    [SerializeField] private bool _doesDroop = true;
 
     [Tooltip("If not specified, system will assume there is no freedom to move on this axis. Can also only have one freedom degree per axis")]
     [SerializeField] private List<FreedomDegree> _degreesOfFreedom = new List<FreedomDegree>();
 
-    [Tooltip("Specify the name of the joint which will get displayed in logging purposes")]
+    [Tooltip("Specify the name of the joint which will get displayed in logging")]
     [SerializeField] private string _name = "";
 
-    [Tooltip("How fast can this joint rotate?")]
+    [Tooltip("Angular speed multiplier")]
     [SerializeField] private float _rotSpeed = 5.0f;
     [Tooltip("How fast does this joint return to its resting pose if its max wasnt reached?")]
     [SerializeField] private float _returnToRestSpeed = 1.0f;
@@ -85,8 +93,8 @@ public class IKfPA_Joint : MonoBehaviour
 
     private bool _checkLimits = false;
     private bool _hasMoved = false;
-
 #pragma warning restore
+
 
     private void Awake()
     {
@@ -105,15 +113,23 @@ public class IKfPA_Joint : MonoBehaviour
     }
     public void DoLateFixedUpdate()
     {
-        if (_checkLimits)  // Dirty flag
+        if (_checkLimits)
         {
             CheckLimits();
         }
 
-        var rot = transform.rotation.eulerAngles;
         if (_hasMoved == false)
         {
             ReturnToRest();
+            if (_doesDroop)
+            {
+                HandleGravity();
+            }
+        }
+
+        if (_checkLimits)
+        {
+            CheckLimits();
         }
     }
 
@@ -177,7 +193,7 @@ public class IKfPA_Joint : MonoBehaviour
             }
         }
 
-        if (IKfPA_Settings.LogSet == IKfPA_Settings.LogSetting.Log)
+        if (Axon_Settings.LogSet == Axon_Settings.LogSetting.Log)
         {
             Debug.Log($"Joint {(_name.Length > 0 ? _name : gameObject.name)} is valid and will be simulating.", this);
         }
@@ -191,7 +207,10 @@ public class IKfPA_Joint : MonoBehaviour
     {
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, Mathf.Min(remainingDegrees * _rotSpeed, _maxAngularSpeed) * Time.deltaTime);
         _checkLimits = true;
-        _hasMoved = true;
+    }
+    public void SetMoved(bool moved)
+    {
+        _hasMoved = moved;
     }
 
     private void CheckLimits()
@@ -205,6 +224,8 @@ public class IKfPA_Joint : MonoBehaviour
             newEulerAngles.y -= 360;
         if (newEulerAngles.z > 180)
             newEulerAngles.z -= 360;
+
+        int usedAxes = 0;
         
         foreach (var deg in _degreesOfFreedom)
         {
@@ -304,6 +325,41 @@ public class IKfPA_Joint : MonoBehaviour
                     
                     break;
             }
+            usedAxes = usedAxes | (int)deg.Axis;
+        }
+
+        var newPos = transform.position;
+
+        for (int i = 1; i < 0x20; i *= 2)
+        {
+            var result = (FreedomDegree.FreedomAxis)(usedAxes & i);
+            // We don't want to limit what we've already gone over
+            if ((usedAxes & i) > 0)
+            {
+                continue;
+            }
+            
+            switch ((FreedomDegree.FreedomAxis)i)
+            {
+                case FreedomDegree.FreedomAxis.moveX:
+                    newPos.x = 0;
+                    break;
+                case FreedomDegree.FreedomAxis.moveY:
+                    newPos.y = 0;
+                    break;
+                case FreedomDegree.FreedomAxis.moveZ:
+                    newPos.z = 0;
+                    break;
+                case FreedomDegree.FreedomAxis.rotX:
+                    newEulerAngles.x = 0;
+                    break;
+                case FreedomDegree.FreedomAxis.rotY:
+                    newEulerAngles.y = 0;
+                    break;
+                case FreedomDegree.FreedomAxis.rotZ:
+                    newEulerAngles.z = 0;
+                    break;
+            }
         }
 
         // Put euler angles back in 0 - 360
@@ -349,11 +405,11 @@ public class IKfPA_Joint : MonoBehaviour
                     {
                         if (newEulerAngles.x < deg.restingAmt)
                         {
-                            newEulerAngles.x = Mathf.Min(newEulerAngles.x + Time.deltaTime * _returnToRestSpeed + deg.restingAmt, deg.restingAmt);
+                            newEulerAngles.x = Mathf.Min(newEulerAngles.x + Time.deltaTime * _returnToRestSpeed, deg.restingAmt);
                         }
                         else
                         {
-                            newEulerAngles.x = Mathf.Max(newEulerAngles.x - Time.deltaTime * _returnToRestSpeed + deg.restingAmt, deg.restingAmt);
+                            newEulerAngles.x = Mathf.Max(newEulerAngles.x - Time.deltaTime * _returnToRestSpeed, deg.restingAmt);
                         }
                     }
                     break;
@@ -362,11 +418,11 @@ public class IKfPA_Joint : MonoBehaviour
                     {
                         if (newEulerAngles.y < deg.restingAmt)
                         {
-                            newEulerAngles.y = Mathf.Min(newEulerAngles.y + Time.deltaTime * _returnToRestSpeed + deg.restingAmt, deg.restingAmt);
+                            newEulerAngles.y = Mathf.Min(newEulerAngles.y + Time.deltaTime * _returnToRestSpeed, deg.restingAmt);
                         }
                         else
                         {
-                            newEulerAngles.y = Mathf.Max(newEulerAngles.y - Time.deltaTime * _returnToRestSpeed + deg.restingAmt, deg.restingAmt);
+                            newEulerAngles.y = Mathf.Max(newEulerAngles.y - Time.deltaTime * _returnToRestSpeed, deg.restingAmt);
                         }
                     }
 
@@ -376,11 +432,11 @@ public class IKfPA_Joint : MonoBehaviour
                     {
                         if (newEulerAngles.z < deg.restingAmt)
                         {
-                            newEulerAngles.z = Mathf.Min(newEulerAngles.z + Time.deltaTime * _returnToRestSpeed + deg.restingAmt, deg.restingAmt);
+                            newEulerAngles.z = Mathf.Min(newEulerAngles.z + Time.deltaTime * _returnToRestSpeed, deg.restingAmt);
                         }
                         else
                         {
-                            newEulerAngles.z = Mathf.Max(newEulerAngles.z - Time.deltaTime * _returnToRestSpeed + deg.restingAmt, deg.restingAmt);
+                            newEulerAngles.z = Mathf.Max(newEulerAngles.z - Time.deltaTime * _returnToRestSpeed, deg.restingAmt);
                         }
                     }
 
@@ -399,5 +455,20 @@ public class IKfPA_Joint : MonoBehaviour
 
         rot.eulerAngles = newEulerAngles;
         transform.rotation = rot;
+    }
+    private void HandleGravity()
+    {
+        float jointLength = _endPoint.localPosition.magnitude;
+        var fwd = transform.forward;
+        float angleHorizontal = Vector3.Angle(fwd, new Vector3(0, fwd.y, 0));
+        
+        // NOTE: Asked this on reddit: https://www.reddit.com/r/askscience/comments/db8eed/what_is_a_good_formula_for_limb_drooping_by/
+        float droopMagnitude = jointLength * _weight;
+        Mathf.Lerp(droopMagnitude, 0.0f, Mathf.Max(angleHorizontal / 45.0f, 1.0f));
+        var droop = droopMagnitude * Axon_Settings.Gravity * Time.deltaTime;
+        var targetEnd = _endPoint.transform.position + droop * Time.deltaTime;
+        transform.LookAt(targetEnd);
+
+        _checkLimits = true;
     }
 }

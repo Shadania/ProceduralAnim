@@ -5,13 +5,13 @@ using UnityEngine;
 /// <summary>
 /// Base class for IKfPA systems. Has basic functionality as well as calling the methods used by systems.
 /// </summary>
-abstract public class IKfPA_System : MonoBehaviour
+abstract public class Axon_System : MonoBehaviour
 {
     public enum IKfPA_PositionInterpolationMode
     {
         Linear,
         Spherical
-    }
+    }   
     public enum Axis
     {
         x,
@@ -19,14 +19,12 @@ abstract public class IKfPA_System : MonoBehaviour
         z
     }
 
-    [Header("General IKfPA System Parameters")]
+    [Header("General Axon System Parameters")]
     [SerializeField] protected Transform _target = null; // Target transform to follow around
     [SerializeField] protected bool _followsTarget = false; // Is this system currently trying to follow a target?
-    [SerializeField] protected string _name = "IKfPA_System"; // Users can set a name for their system in editor for easy debugging
+    [SerializeField] protected string _name = "Axon_System"; // Users can set a name for their system in editor for easy debugging
     [SerializeField] protected float _minTargetRange = 0.5f; // If equal to max target range, it's a hard limit
     [SerializeField] protected float _maxTargetRange = 0.5f; // If not equal, soft limit -> interpolation
-    [Tooltip("End point of the bone lowest in the hierarchy: if orientation mode is off, will be used to match against target")]
-    [SerializeField] protected Transform _endPoint = null;
 
     [SerializeField] protected IKfPA_PositionInterpolationMode _interpMode = IKfPA_PositionInterpolationMode.Spherical;
     [Tooltip("Doesn't do anything on single bone systems because they don't have an end bone")]
@@ -37,7 +35,7 @@ abstract public class IKfPA_System : MonoBehaviour
     private bool _valid = false;
     public bool IsValid { get { return _valid; } }
 
-    protected List<IKfPA_Joint> _bones = new List<IKfPA_Joint>();
+    protected List<Axon_Joint> _bones = new List<Axon_Joint>();
 
 
 
@@ -48,7 +46,7 @@ abstract public class IKfPA_System : MonoBehaviour
             _target = target;
         }
 
-        if (IKfPA_Settings.LogSet == IKfPA_Settings.LogSetting.Log)
+        if (Axon_Settings.LogSet == Axon_Settings.LogSetting.Log)
         {
             Debug.Log($"System {_name} has received new target {_target.ToString()}", this);
         }
@@ -64,6 +62,11 @@ abstract public class IKfPA_System : MonoBehaviour
         if (_valid && _followsTarget)
         {
             MoveToTarget();
+
+            foreach (var bone in _bones)
+            {
+                bone.SetMoved(true);
+            }
         }
 
         foreach (var bone in _bones)
