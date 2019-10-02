@@ -5,13 +5,17 @@ using UnityEngine;
 public class TestScript : MonoBehaviour
 {
 #pragma warning disable 414
-    [SerializeField] private Axon_System_SingleBone _singleBoneTestSystem = null;
-    [SerializeField] private float _lateStartDelay = 5.0f;
+    [SerializeField] private GameObject _boneRoot = null;
+    [SerializeField] private float _lateStartDelay = 1.0f;
+    [SerializeField] private bool _doThings = false;
 #pragma warning restore
 
 
     private void Start()
     {
+        if (_doThings == false)
+            return;
+
         Axon_Settings.SetLogSetting(Axon_Settings.LogSetting.Log);
         StartCoroutine(WaitLateStart(_lateStartDelay));
     }
@@ -24,7 +28,21 @@ public class TestScript : MonoBehaviour
 
     private void LateStart()
     {
+        if (_doThings == false)
+            return;
+
         Debug.Log("Late start fired");
     }
 
+    private void Update()
+    {
+        if (_doThings == false)
+            return;
+
+        Vector3 newPosition = new Vector3();
+        float angle = Time.realtimeSinceStartup;
+        newPosition.z = Mathf.Sin(angle);
+        newPosition.y = Mathf.Cos(angle);
+        _boneRoot.transform.position = newPosition;
+    }
 }

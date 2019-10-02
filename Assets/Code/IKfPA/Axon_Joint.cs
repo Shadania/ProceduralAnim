@@ -33,20 +33,20 @@ public struct FreedomDegree
 /// </summary>
 public struct TransformMinimal
 {
+    public Vector3 localPos;
     public Vector3 pos;
-    public Vector3 worldPos;
+    public Vector3 localRot;
     public Vector3 rot;
-    public Vector3 worldRot;
     public Transform parent;
 
     public static TransformMinimal operator-(TransformMinimal a, TransformMinimal b)
     {
         var result = new TransformMinimal();
 
+        result.localPos = a.localPos - b.localPos;
         result.pos = a.pos - b.pos;
-        result.worldPos = a.worldPos - b.worldPos;
+        result.localRot = a.localRot - b.localRot;
         result.rot = a.rot - b.rot;
-        result.worldRot = a.worldRot - b.worldRot;
 
         return result;
     }
@@ -68,7 +68,7 @@ public class Axon_Joint : MonoBehaviour
     // Used by System
     public Transform EndPoint { get { return _endPoint; } }
 
-    [Tooltip("How heavy is this object? Determines limb droop if gravity is turned on, propagation of root motion to this bone...")]
+    [Tooltip("How heavy is this object? Determines limb droop if gravity is turned on...")]
     [SerializeField] private float _weight = 50.0f;
     [Tooltip("Will this bone droop according to gravity? Uses the weight param and the endpoint of the bone")]
     [SerializeField] private bool _doesDroop = true;
@@ -84,12 +84,17 @@ public class Axon_Joint : MonoBehaviour
     [Tooltip("How fast does this joint return to its resting pose if its max wasnt reached?")]
     [SerializeField] private float _returnToRestSpeed = 1.0f;
 
+    [Tooltip("Newton's law: Will this object lag a bit behind on catching up with its target position?")]
+    [SerializeField] private bool _doesSmoothMotion = false;
+    [Tooltip("How fast does it catch up with targetpos? (0: not at all, 1: does not lag at all)")]
+    [SerializeField] private float _smoothMotionRate = 0.5f;
+
+
     private bool _valid = false;
     public bool IsValid { get { return _valid; } }
 
-    private TransformMinimal _startTransform = new TransformMinimal();
     private TransformMinimal _parentTransform = new TransformMinimal();
-    private TransformMinimal _previousTransform = new TransformMinimal();
+    private TransformMinimal _actualEndPos = new TransformMinimal();
 
     private bool _checkLimits = false;
     private bool _hasMoved = false;
@@ -101,23 +106,19 @@ public class Axon_Joint : MonoBehaviour
         // Check if this joint is valid.
         if (CheckValid() == false)
             return;
+        
+        _parentTransform = CaptureParentTransform();
+        _actualEndPos = CaptureEndPointTransform();
 
-        CaptureStartTransform();
-        CaptureParentTransform();
+        ClampParameters();
     }
 
     public void DoEarlyFixedUpdate()
     {
-        CapturePreviousTransform();
         _hasMoved = false;
     }
     public void DoLateFixedUpdate()
     {
-        if (_checkLimits)
-        {
-            CheckLimits();
-        }
-
         if (_hasMoved == false)
         {
             ReturnToRest();
@@ -126,47 +127,57 @@ public class Axon_Joint : MonoBehaviour
                 HandleGravity();
             }
         }
-
+        
+        // Smooths over the previous movements
+        if (_doesSmoothMotion)
+        {
+            HandleSmoothMotion();
+        }
+        
         if (_checkLimits)
         {
             CheckLimits();
         }
+
+        // if this is left inside the does smooth motion if statement, there is jitter on turning off and on
+        _actualEndPos = CaptureEndPointTransform();
+
+        _parentTransform = CaptureParentTransform();
     }
 
+
     #region Capture Transforms
-    private void CaptureStartTransform()
+    private TransformMinimal CaptureParentTransform()
     {
-        _startTransform.parent = transform.parent;
-        _startTransform.rot = transform.localRotation.eulerAngles;
-        _startTransform.worldRot = transform.rotation.eulerAngles;
-        _startTransform.pos = transform.localPosition;
-        _startTransform.worldPos = transform.position;
-    }
-    private void CaptureParentTransform()
-    {
+        TransformMinimal result = new TransformMinimal();
         if (transform.parent)
         {
-            _parentTransform.parent = transform.parent.parent;
-            _parentTransform.rot = transform.parent.localRotation.eulerAngles;
-            _parentTransform.worldRot = transform.parent.rotation.eulerAngles;
-            _parentTransform.pos = transform.parent.localPosition;
-            _parentTransform.worldPos = transform.parent.position;
+            result.parent = transform.parent.parent;
+            result.localRot = transform.parent.localRotation.eulerAngles;
+            result.rot = transform.parent.rotation.eulerAngles;
+            result.localPos = transform.parent.localPosition;
+            result.pos = transform.parent.position;
         }
+        return result;
     }
-    private void CapturePreviousTransform()
+    private TransformMinimal CaptureEndPointTransform()
     {
-        _previousTransform.parent = transform.parent;
-        _previousTransform.rot = transform.localRotation.eulerAngles;
-        _previousTransform.worldRot = transform.rotation.eulerAngles;
-        _previousTransform.pos = transform.localPosition;
-        _previousTransform.worldPos = transform.position;
+        TransformMinimal result = new TransformMinimal();
+
+        if (_endPoint)
+        {
+            result.pos = _endPoint.position;
+            result.localPos = _endPoint.localPosition;
+            result.localRot = _endPoint.localRotation.eulerAngles;
+            result.rot = _endPoint.rotation.eulerAngles;
+            result.parent = _endPoint.parent;
+        }
+
+        return result;
     }
     #endregion
 
-    /// <summary>
-    /// Called during start, keeps a bool. Invalid joints will not move.
-    /// </summary>
-    /// <returns>Valid bool</returns>
+    #region Awake Functionality
     private bool CheckValid()
     {
         // Check if degrees of freedom are valid.
@@ -202,6 +213,15 @@ public class Axon_Joint : MonoBehaviour
         _valid = true;
         return true;
     }
+    private void ClampParameters() // Should use custom UI for this but that's not my gradwork so
+    {
+        _smoothMotionRate = Mathf.Clamp(_smoothMotionRate, 0.0f, 1.0f);
+        _returnToRestSpeed = Mathf.Max(0.0f, _returnToRestSpeed);
+        _rotSpeed = Mathf.Max(0.0f, _rotSpeed);
+        _weight = Mathf.Max(0.0f, _weight); // TODO: Anti-gravity?
+        _maxAngularSpeed = Mathf.Max(0.0f, _maxAngularSpeed);
+    }
+    #endregion
 
     public void RotateImmediate(Quaternion targetRot, float remainingDegrees)
     {
@@ -217,7 +237,7 @@ public class Axon_Joint : MonoBehaviour
     {
         var rot = transform.rotation;
         var newEulerAngles = rot.eulerAngles;
-        
+
         if (newEulerAngles.x > 180)
             newEulerAngles.x -= 360;
         if (newEulerAngles.y > 180)
@@ -226,7 +246,7 @@ public class Axon_Joint : MonoBehaviour
             newEulerAngles.z -= 360;
 
         int usedAxes = 0;
-        
+
         foreach (var deg in _degreesOfFreedom)
         {
             switch (deg.Axis)
@@ -242,7 +262,6 @@ public class Axon_Joint : MonoBehaviour
                     break;
                 case FreedomDegree.FreedomAxis.rotX:
                     {
-                        // Debug.Log(newEulerAngles.x);
                         float maxLim = deg.maxAmt + deg.restingAmt;
                         float minLim = deg.restingAmt - deg.maxAmt;
                         bool didChange = false;
@@ -251,13 +270,11 @@ public class Axon_Joint : MonoBehaviour
                         {
                             newEulerAngles.x = maxLim;
                             didChange = true;
-                            Debug.Log("Top reached");
                         }
                         else if (newEulerAngles.x < minLim)
                         {
                             newEulerAngles.x = minLim;
                             didChange = true;
-                            Debug.Log("Bottom reached");
                         }
 
                         if (didChange)
@@ -295,7 +312,7 @@ public class Axon_Joint : MonoBehaviour
                                 newEulerAngles.y += 360.0f;
                         }
                     }
-                    
+
                     break;
                 case FreedomDegree.FreedomAxis.rotZ:
                     {
@@ -322,7 +339,7 @@ public class Axon_Joint : MonoBehaviour
                                 newEulerAngles.z += 360.0f;
                         }
                     }
-                    
+
                     break;
             }
             usedAxes = usedAxes | (int)deg.Axis;
@@ -338,7 +355,7 @@ public class Axon_Joint : MonoBehaviour
             {
                 continue;
             }
-            
+
             switch ((FreedomDegree.FreedomAxis)i)
             {
                 case FreedomDegree.FreedomAxis.moveX:
@@ -461,13 +478,47 @@ public class Axon_Joint : MonoBehaviour
         float jointLength = _endPoint.localPosition.magnitude;
         var fwd = transform.forward;
         float angleHorizontal = Vector3.Angle(fwd, new Vector3(0, fwd.y, 0));
-        
+
         // NOTE: Asked this on reddit: https://www.reddit.com/r/askscience/comments/db8eed/what_is_a_good_formula_for_limb_drooping_by/
         float droopMagnitude = jointLength * _weight;
         Mathf.Lerp(droopMagnitude, 0.0f, Mathf.Max(angleHorizontal / 45.0f, 1.0f));
         var droop = droopMagnitude * Axon_Settings.Gravity * Time.deltaTime;
         var targetEnd = _endPoint.transform.position + droop * Time.deltaTime;
         transform.LookAt(targetEnd);
+
+        _checkLimits = true;
+    }
+    private void HandleSmoothMotion()
+    {
+        // PARENT TRANSFORM SYSTEM -> ROOT MOTION -> OLD SYSTEM
+        /*
+        if (transform.parent == null)
+            return;
+
+        Vector3 velocity = transform.parent.position - _parentTransform.worldPos;
+
+        Vector3 offset = velocity * (1.0f - _smoothMotionRate);
+
+        Vector3 endTargetPos = _endPoint.position - offset;
+
+        Debug.Log(offset.ToString());
+
+        transform.LookAt(endTargetPos);
+
+        _checkLimits = true;
+        */
+
+        // NEW SYSTEM -> SMOOTH MOTION
+
+        Vector3 velocity = _endPoint.position - _actualEndPos.pos;
+
+        Vector3 offset = velocity * (1.0f - _smoothMotionRate);
+
+        Vector3 endTargetPos = _endPoint.position - offset;
+
+        Debug.Log(offset.ToString());
+
+        transform.LookAt(endTargetPos);
 
         _checkLimits = true;
     }
