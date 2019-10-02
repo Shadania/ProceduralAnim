@@ -6,12 +6,7 @@ using UnityEngine;
 /// Base class for IKfPA systems. Has basic functionality as well as calling the methods used by systems.
 /// </summary>
 abstract public class Axon_System : MonoBehaviour
-{
-    public enum IKfPA_PositionInterpolationMode
-    {
-        Linear,
-        Spherical
-    }   
+{ 
     public enum Axis
     {
         x,
@@ -25,12 +20,12 @@ abstract public class Axon_System : MonoBehaviour
     [SerializeField] protected string _name = "Axon_System"; // Users can set a name for their system in editor for easy debugging
     [SerializeField] protected float _minTargetRange = 0.5f; // If equal to max target range, it's a hard limit
     [SerializeField] protected float _maxTargetRange = 0.5f; // If not equal, soft limit -> interpolation
-
-    [SerializeField] protected IKfPA_PositionInterpolationMode _interpMode = IKfPA_PositionInterpolationMode.Spherical;
+    
     [Tooltip("Doesn't do anything on single bone systems because they don't have an end bone")]
     [SerializeField] protected bool _orientEndBoneToTarget = false;
     [Tooltip("Which local axis of the end bone to orient towards the target. Doesn't do anything on single bone systems")]
     [SerializeField] protected Axis _endBoneOrientation = Axis.z;
+    
 
     private bool _valid = false;
     public bool IsValid { get { return _valid; } }
@@ -68,7 +63,7 @@ abstract public class Axon_System : MonoBehaviour
                 bone.SetMoved(true);
             }
         }
-
+        
         foreach (var bone in _bones)
         {
             bone.DoLateFixedUpdate();
@@ -102,6 +97,7 @@ abstract public class Axon_System : MonoBehaviour
     virtual protected bool CheckSystemValid() { return false; }
     /// <summary>
     /// Child classes should implement this to ensure correct joint updates.
+    /// Add bones to the _bones variable in the order you need them to be updated: PARENT BEFORE CHILD!
     /// </summary>
     virtual protected void AddBonesToList() { }
 }

@@ -42,24 +42,13 @@ public sealed class Axon_System_SingleBone : Axon_System
             if (Mathf.Abs(rotAngle) > 1.0f)
             {
                 Quaternion targetRot = Quaternion.LookRotation(targetVec.normalized, _bone.transform.up);
-                _bone.RotateImmediate(targetRot, rotAngle);
+                _bone.Rotate(targetRot, rotAngle);
                 Debug.Log($"Rotating by {rotAngle}");
             }
         }
         else
         {
             // Nope
-        }
-
-        switch (_interpMode)
-        {
-            case IKfPA_PositionInterpolationMode.Linear:
-
-                break;
-
-            case IKfPA_PositionInterpolationMode.Spherical:
-
-                break;
         }
     }
     override protected bool CheckSystemValid()
@@ -78,7 +67,7 @@ public sealed class Axon_System_SingleBone : Axon_System
 
         return true;
     }
-    protected override void AddBonesToList()
+    override protected void AddBonesToList()
     {
         _bones.Add(_bone);
     }

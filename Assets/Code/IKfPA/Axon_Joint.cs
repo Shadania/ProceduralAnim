@@ -98,6 +98,7 @@ public class Axon_Joint : MonoBehaviour
 
     private bool _checkLimits = false;
     private bool _hasMoved = false;
+    private bool _didLateUpdate = false;
 #pragma warning restore
 
 
@@ -116,18 +117,25 @@ public class Axon_Joint : MonoBehaviour
     public void DoEarlyFixedUpdate()
     {
         _hasMoved = false;
+        _didLateUpdate = false;
     }
     public void DoLateFixedUpdate()
     {
+        // Only do once per frame
+        if (_didLateUpdate)
+            return;
+        _didLateUpdate = true;
+
         if (_hasMoved == false)
         {
             ReturnToRest();
-            if (_doesDroop)
-            {
-                HandleGravity();
-            }
         }
-        
+
+        if (_doesDroop)
+        {
+            HandleGravity();
+        }
+
         // Smooths over the previous movements
         if (_doesSmoothMotion)
         {
@@ -223,15 +231,27 @@ public class Axon_Joint : MonoBehaviour
     }
     #endregion
 
-    public void RotateImmediate(Quaternion targetRot, float remainingDegrees)
+    public void Rotate(Quaternion targetRot, float remainingDegrees)
     {
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, Mathf.Min(remainingDegrees * _rotSpeed, _maxAngularSpeed) * Time.deltaTime);
         _checkLimits = true;
+        _didLateUpdate = false;
+
+    }
+    // Only use this one if you're sure this is the last move function called on this joint, else resources are wasted,
+    // unless you need to check twice for some reason.
+    public void RotateImmediate(Quaternion targetRot, float remainingDegrees)
+    {
+        DoEarlyFixedUpdate();
+        Rotate(targetRot, remainingDegrees);
+        _hasMoved = true;
+        DoLateFixedUpdate();
     }
     public void SetMoved(bool moved)
     {
         _hasMoved = moved;
     }
+
 
     private void CheckLimits()
     {
@@ -515,8 +535,6 @@ public class Axon_Joint : MonoBehaviour
         Vector3 offset = velocity * (1.0f - _smoothMotionRate);
 
         Vector3 endTargetPos = _endPoint.position - offset;
-
-        Debug.Log(offset.ToString());
 
         transform.LookAt(endTargetPos);
 
