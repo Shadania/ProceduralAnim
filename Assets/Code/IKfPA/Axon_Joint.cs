@@ -252,7 +252,7 @@ public class Axon_Joint : MonoBehaviour
         _hasMoved = moved;
     }
 
-
+    #region LateUpdate
     private void CheckLimits()
     {
         var rot = transform.rotation;
@@ -540,4 +540,5 @@ public class Axon_Joint : MonoBehaviour
 
         _checkLimits = true;
     }
+    #endregion
 }
