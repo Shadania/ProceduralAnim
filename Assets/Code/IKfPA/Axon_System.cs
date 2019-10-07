@@ -7,13 +7,6 @@ using UnityEngine;
 /// </summary>
 abstract public class Axon_System : MonoBehaviour
 { 
-    public enum Axis
-    {
-        x,
-        y,
-        z
-    }
-
     [Header("General Axon System Parameters")]
     [SerializeField] protected Transform _target = null; // Target transform to follow around
     [SerializeField] protected bool _followsTarget = false; // Is this system currently trying to follow a target?
@@ -21,12 +14,7 @@ abstract public class Axon_System : MonoBehaviour
     [SerializeField] protected float _minTargetRange = 0.5f; // If equal to max target range, it's a hard limit
     [SerializeField] protected float _maxTargetRange = 0.5f; // If not equal, soft limit -> interpolation
     
-    [Tooltip("Doesn't do anything on single bone systems because they don't have an end bone")]
-    [SerializeField] protected bool _orientEndBoneToTarget = false;
-    [Tooltip("Which local axis of the end bone to orient towards the target. Doesn't do anything on single bone systems")]
-    [SerializeField] protected Axis _endBoneOrientation = Axis.z;
     
-
     private bool _valid = false;
     public bool IsValid { get { return _valid; } }
 
@@ -67,6 +55,11 @@ abstract public class Axon_System : MonoBehaviour
         foreach (var bone in _bones)
         {
             bone.DoLateFixedUpdate();
+        }
+
+        foreach (var bone in _bones)
+        {
+            bone.DoFinalFixedUpdate();
         }
     }
     private void Start()

@@ -69,7 +69,7 @@ public class Axon_Joint : MonoBehaviour
     public Transform EndPoint { get { return _endPoint; } }
 
     [Tooltip("How heavy is this object? Determines limb droop if gravity is turned on...")]
-    [SerializeField] private float _weight = 50.0f;
+    [SerializeField] private float _weight = 1.0f;
     [Tooltip("Will this bone droop according to gravity? Uses the weight param and the endpoint of the bone")]
     [SerializeField] private bool _doesDroop = true;
 
@@ -81,6 +81,9 @@ public class Axon_Joint : MonoBehaviour
 
     [Tooltip("Angular speed multiplier")]
     [SerializeField] private float _rotSpeed = 5.0f;
+
+    [Tooltip("Does this joint return to its resting point if it didn't move?")]
+    [SerializeField] private bool _doesReturnToRest = true;
     [Tooltip("How fast does this joint return to its resting pose if its max wasnt reached?")]
     [SerializeField] private float _returnToRestSpeed = 1.0f;
 
@@ -95,6 +98,7 @@ public class Axon_Joint : MonoBehaviour
 
     private TransformMinimal _parentTransform = new TransformMinimal();
     private TransformMinimal _actualEndPos = new TransformMinimal();
+    private Vector3 _prevVelocity = new Vector3();
 
     private bool _checkLimits = false;
     private bool _hasMoved = false;
@@ -126,7 +130,7 @@ public class Axon_Joint : MonoBehaviour
             return;
         _didLateUpdate = true;
 
-        if (_hasMoved == false)
+        if (_hasMoved == false && _doesReturnToRest)
         {
             ReturnToRest();
         }
@@ -146,7 +150,9 @@ public class Axon_Joint : MonoBehaviour
         {
             CheckLimits();
         }
-
+    }
+    public void DoFinalFixedUpdate()
+    {
         // if this is left inside the does smooth motion if statement, there is jitter on turning off and on
         _actualEndPos = CaptureEndPointTransform();
 
@@ -221,7 +227,7 @@ public class Axon_Joint : MonoBehaviour
         _valid = true;
         return true;
     }
-    private void ClampParameters() // Should use custom UI for this but that's not my gradwork so
+    private void ClampParameters() // Should use custom UI for this
     {
         _smoothMotionRate = Mathf.Clamp(_smoothMotionRate, 0.0f, 1.0f);
         _returnToRestSpeed = Mathf.Max(0.0f, _returnToRestSpeed);
@@ -236,13 +242,11 @@ public class Axon_Joint : MonoBehaviour
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, Mathf.Min(remainingDegrees * _rotSpeed, _maxAngularSpeed) * Time.deltaTime);
         _checkLimits = true;
         _didLateUpdate = false;
-
     }
     // Only use this one if you're sure this is the last move function called on this joint, else resources are wasted,
     // unless you need to check twice for some reason.
     public void RotateImmediate(Quaternion targetRot, float remainingDegrees)
     {
-        DoEarlyFixedUpdate();
         Rotate(targetRot, remainingDegrees);
         _hasMoved = true;
         DoLateFixedUpdate();
@@ -252,10 +256,10 @@ public class Axon_Joint : MonoBehaviour
         _hasMoved = moved;
     }
 
-    #region LateUpdate
+    #region FixedUpdate
     private void CheckLimits()
     {
-        var rot = transform.rotation;
+        var rot = transform.localRotation;
         var newEulerAngles = rot.eulerAngles;
 
         if (newEulerAngles.x > 180)
@@ -408,13 +412,13 @@ public class Axon_Joint : MonoBehaviour
             newEulerAngles.z += 360;
 
         rot.eulerAngles = newEulerAngles;
-        transform.rotation = rot;
+        transform.localRotation = rot;
 
         _checkLimits = false;
     }
     private void ReturnToRest()
     {
-        var rot = transform.rotation;
+        var rot = transform.localRotation;
         var newEulerAngles = rot.eulerAngles;
 
         if (newEulerAngles.x > 180)
@@ -491,7 +495,7 @@ public class Axon_Joint : MonoBehaviour
             newEulerAngles.z += 360;
 
         rot.eulerAngles = newEulerAngles;
-        transform.rotation = rot;
+        transform.localRotation = rot;
     }
     private void HandleGravity()
     {
@@ -510,30 +514,10 @@ public class Axon_Joint : MonoBehaviour
     }
     private void HandleSmoothMotion()
     {
-        // PARENT TRANSFORM SYSTEM -> ROOT MOTION -> OLD SYSTEM
-        /*
-        if (transform.parent == null)
-            return;
-
-        Vector3 velocity = transform.parent.position - _parentTransform.worldPos;
-
-        Vector3 offset = velocity * (1.0f - _smoothMotionRate);
-
-        Vector3 endTargetPos = _endPoint.position - offset;
-
-        Debug.Log(offset.ToString());
-
-        transform.LookAt(endTargetPos);
-
-        _checkLimits = true;
-        */
-
-        // NEW SYSTEM -> SMOOTH MOTION
-
         Vector3 velocity = _endPoint.position - _actualEndPos.pos;
 
         Vector3 offset = velocity * (1.0f - _smoothMotionRate);
-
+        
         Vector3 endTargetPos = _endPoint.position - offset;
 
         transform.LookAt(endTargetPos);

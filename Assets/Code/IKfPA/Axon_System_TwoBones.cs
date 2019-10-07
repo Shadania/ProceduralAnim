@@ -9,7 +9,12 @@ public class Axon_System_TwoBones : Axon_System
     [SerializeField] private Axon_Joint _endBone = null;
     [Tooltip("Required for the system to know which way to bend")]
     [SerializeField] private Transform _swivelTransform = null;
-    
+
+    [Tooltip("Should I orient my end bone towards the target instead of trying to reach it with the tip of this end bone?")]
+    [SerializeField] protected bool _orientEndBoneToTarget = false;
+    [Tooltip("Which local axis of the end bone to orient towards the target. Doesn't do anything on single bone systems")]
+    [SerializeField] protected Vector3 _endBoneOrientation = new Vector3();
+
     protected override void AddBonesToList()
     {
         _bones.Add(_baseBone);
@@ -18,10 +23,33 @@ public class Axon_System_TwoBones : Axon_System
 
     protected override bool CheckSystemValid()
     {
-        return (_baseBone != null) && (_endBone != null) && (_swivelTransform != null);
+        bool result = (_baseBone != null) && (_endBone != null) && (_swivelTransform != null);
+        if (result == false)
+            return false;
+
+        if (_orientEndBoneToTarget)
+            result = _endBoneOrientation.sqrMagnitude > 0.0001f;
+
+        if (result == false)
+        {
+            Debug.LogError($"System {_name} has _orientEndBoneToTarget set, but the vector to orient it is null!");
+        }
+
+        return result;
     }
 
     protected override void MoveToTarget()
+    {
+        if (_orientEndBoneToTarget)
+        {
+            MoveToFaceTarget();
+        }
+        else
+        {
+            RegularMoveToTarget();
+        }
+    }
+    private void RegularMoveToTarget()
     {
         var targetPos = _target.position;
         var midPos = _endBone.transform.position;
@@ -77,5 +105,25 @@ public class Axon_System_TwoBones : Axon_System
             angle = Vector3.Angle(endPos - midPos, targetPos - midPos);
             _endBone.RotateImmediate(newRot, angle);
         }
+    }
+    private void MoveToFaceTarget()
+    {
+        // Orient base bone to target
+        var targetPos = _target.position;
+        var midPos = _endBone.transform.position;
+        var endPos = _endBone.EndPoint.position;
+        var rootPos = _baseBone.transform.position;
+        var swivPos = _swivelTransform.position;
+
+        Quaternion newRot = Quaternion.LookRotation(targetPos - rootPos);
+        float angle = Vector3.Angle(midPos - rootPos, targetPos - rootPos);
+        _baseBone.RotateImmediate(newRot, angle);
+
+        // Make end point face target
+        midPos = _endBone.transform.position;
+        endPos = _endBone.EndPoint.position;
+        newRot = Quaternion.FromToRotation(_endBoneOrientation, targetPos - endPos);
+        angle = Vector3.Angle(_endBoneOrientation, targetPos - endPos);
+        _endBone.Rotate(newRot, angle);
     }
 }
