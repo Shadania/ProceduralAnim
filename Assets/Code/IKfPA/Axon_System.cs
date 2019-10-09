@@ -11,8 +11,8 @@ abstract public class Axon_System : MonoBehaviour
     [SerializeField] protected Transform _target = null; // Target transform to follow around
     [SerializeField] protected bool _followsTarget = false; // Is this system currently trying to follow a target?
     [SerializeField] protected string _name = "Axon_System"; // Users can set a name for their system in editor for easy debugging
-    [SerializeField] protected float _minTargetRange = 0.5f; // If equal to max target range, it's a hard limit
-    [SerializeField] protected float _maxTargetRange = 0.5f; // If not equal, soft limit -> interpolation
+    [Tooltip("How much does the angle have to be before the system does it? Helps against jitter, is the bane of accuracy")]
+    [SerializeField] protected float _minAngleDiff = 1.0f;
     
     
     private bool _valid = false;
@@ -44,11 +44,12 @@ abstract public class Axon_System : MonoBehaviour
 
         if (_valid && _followsTarget)
         {
-            MoveToTarget();
-
-            foreach (var bone in _bones)
+            if (MoveToTarget())
             {
-                bone.SetMoved(true);
+                foreach (var bone in _bones)
+                {
+                    bone.SetMoved(true);
+                }
             }
         }
         
@@ -64,14 +65,7 @@ abstract public class Axon_System : MonoBehaviour
     }
     private void Start()
     {
-        if (_minTargetRange > _maxTargetRange)
-        {
-            Debug.LogError($"System {_name} has a mintargetrange that is larger than the maxtargetrange! Marking system as non valid.", this);
-        }
-        else
-        {
-            _valid = CheckSystemValid();
-        }
+        _valid = CheckSystemValid();
 
         if (_valid)
         {
@@ -82,7 +76,7 @@ abstract public class Axon_System : MonoBehaviour
     /// <summary>
     /// Function that should be used by systems. Gets called by System's FixedUpdate if the system is valid. Do not use FixedUpdate, use this function.
     /// </summary>
-    virtual protected void MoveToTarget() { }
+    virtual protected bool MoveToTarget() { return false; }
     /// <summary>
     /// Called in Start, because Joints check if they're valid in Awake. Do not call Start.
     /// </summary>

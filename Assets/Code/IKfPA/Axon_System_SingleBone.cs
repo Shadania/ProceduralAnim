@@ -6,8 +6,10 @@ public sealed class Axon_System_SingleBone : Axon_System
 {
     [Header("Single Bone System Parameters")]
     [SerializeField] private Axon_Joint _bone = null;
+    [SerializeField] private float _minTargetRange = 0.5f; // If equal to max target range, it's a hard limit
+    [SerializeField] private float _maxTargetRange = 0.5f; // If not equal, soft limit -> interpolation
 
-    override protected void MoveToTarget()
+    override protected bool MoveToTarget()
     {
         var targetpos = _target.transform.position;
         var endpos = _bone.EndPoint.position;
@@ -24,6 +26,7 @@ public sealed class Axon_System_SingleBone : Axon_System
             if (distToGo < _minTargetRange)
             {
                 // how??
+                return false;
             }
             else if (distToGo > _maxTargetRange)
             {
@@ -43,13 +46,14 @@ public sealed class Axon_System_SingleBone : Axon_System
             {
                 Quaternion targetRot = Quaternion.LookRotation(targetVec.normalized, _bone.transform.up);
                 _bone.Rotate(targetRot, rotAngle);
-                Debug.Log($"Rotating by {rotAngle}");
             }
         }
         else
         {
             // Nope
         }
+
+        return true;
     }
     override protected bool CheckSystemValid()
     {
@@ -63,6 +67,12 @@ public sealed class Axon_System_SingleBone : Axon_System
         {
             Debug.LogError($"System {_name} has invalid bones added to it. It will not do anything.", this);
             return  false;
+        }
+
+        if (_minTargetRange > _maxTargetRange)
+        {
+            Debug.LogError($"System {_name} has a mintargetrange that is larger than the maxtargetrange! Marking system as non valid.", this);
+            return false;
         }
 
         return true;

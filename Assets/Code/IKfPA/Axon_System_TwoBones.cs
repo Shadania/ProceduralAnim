@@ -2,18 +2,19 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Axon_System_TwoBones : Axon_System
+public sealed class Axon_System_TwoBones : Axon_System
 {
     [Header("Two bone system parameters")]
     [SerializeField] private Axon_Joint _baseBone = null;
     [SerializeField] private Axon_Joint _endBone = null;
     [Tooltip("Required for the system to know which way to bend")]
     [SerializeField] private Transform _swivelTransform = null;
+    [SerializeField] private float _minTargetRange = 0.2f;
 
-    [Tooltip("Should I orient my end bone towards the target instead of trying to reach it with the tip of this end bone?")]
-    [SerializeField] protected bool _orientEndBoneToTarget = false;
-    [Tooltip("Which local axis of the end bone to orient towards the target. Doesn't do anything on single bone systems")]
-    [SerializeField] protected Vector3 _endBoneOrientation = new Vector3();
+    // [Tooltip("Should I orient my end bone towards the target instead of trying to reach it with the tip of this end bone?")]
+    // [SerializeField] protected bool _orientEndBoneToTarget = false;
+    // [Tooltip("Which local axis of the end bone to orient towards the target. Doesn't do anything on single bone systems")]
+    // [SerializeField] protected Vector3 _endBoneOrientation = new Vector3();
 
     protected override void AddBonesToList()
     {
@@ -26,10 +27,7 @@ public class Axon_System_TwoBones : Axon_System
         bool result = (_baseBone != null) && (_endBone != null) && (_swivelTransform != null);
         if (result == false)
             return false;
-
-        if (_orientEndBoneToTarget)
-            result = _endBoneOrientation.sqrMagnitude > 0.0001f;
-
+        
         if (result == false)
         {
             Debug.LogError($"System {_name} has _orientEndBoneToTarget set, but the vector to orient it is null!");
@@ -38,24 +36,28 @@ public class Axon_System_TwoBones : Axon_System
         return result;
     }
 
-    protected override void MoveToTarget()
+    protected override bool MoveToTarget()
     {
-        if (_orientEndBoneToTarget)
-        {
-            MoveToFaceTarget();
-        }
-        else
-        {
-            RegularMoveToTarget();
-        }
+        // if (_orientEndBoneToTarget)
+        // {
+        //     MoveToFaceTarget();
+        // }
+        // else
+        // {
+            return RegularMoveToTarget();
+        //}
     }
-    private void RegularMoveToTarget()
+    private bool RegularMoveToTarget()
     {
-        var targetPos = _target.position;
-        var midPos = _endBone.transform.position;
-        var endPos = _endBone.EndPoint.position;
-        var rootPos = _baseBone.transform.position;
-        var swivPos = _swivelTransform.position;
+        Vector3 targetPos = _target.position;
+        Vector3 endPos = _endBone.EndPoint.position;
+        if (Vector3.Distance(targetPos, endPos) < _minTargetRange)
+        {
+            return false;
+        }
+        Vector3 midPos = _endBone.transform.position;
+        Vector3 rootPos = _baseBone.transform.position;
+        Vector3 swivPos = _swivelTransform.position;
 
         float distRootToTarget = Vector3.Distance(rootPos, targetPos);
         float rootBoneLength = Vector3.Distance(rootPos, midPos);
@@ -80,32 +82,41 @@ public class Axon_System_TwoBones : Axon_System
             float triArea = Mathf.Sqrt(halfPerim * (halfPerim - baseLength) * (halfPerim - sideLength1) * (halfPerim - sideLength2));
             float triHeight = 2 * triArea / baseLength; // Triangle area formula (area = base * height / 2) transformed
             Vector3 elbowPos = midPos1D + swivAxis.normalized * triHeight;
-            // Apply this first transformation
-            Quaternion newRot = Quaternion.LookRotation(elbowPos - rootPos);
-            float angle = Vector3.Angle(midPos - rootPos, elbowPos - rootPos);
-            _baseBone.RotateImmediate(newRot, angle);
 
-            // SECONDARY BONE ROTATION TOWARDS
-            midPos = _endBone.transform.position;
-            endPos = _endBone.EndPoint.position;
-            newRot = Quaternion.LookRotation(targetPos - midPos);
-            angle = Vector3.Angle(endPos - midPos, targetPos - midPos);
-            _endBone.RotateImmediate(newRot, angle);
+            // Apply this first transformation to the root bone
+            Quaternion newRot = Quaternion.FromToRotation(midPos - rootPos, elbowPos - rootPos);
+            Vector3 newFwd = newRot * _baseBone.transform.forward;
+            newRot = Quaternion.LookRotation(newFwd, Vector3.up);
+            float angle = Vector3.Angle(newFwd, _baseBone.transform.forward);
+            if (Mathf.Abs(angle) > _minAngleDiff)
+                _baseBone.RotateImmediate(newRot, angle);
         }
         else
         {
             // need to fully stretch out towards the target, older one first
-            Quaternion newRot = Quaternion.LookRotation(targetPos - rootPos);
-            float angle = Vector3.Angle(midPos - rootPos, targetPos - rootPos);
-            _baseBone.RotateImmediate(newRot, angle);
-
-            midPos = _endBone.transform.position;
-            endPos = _endBone.EndPoint.position;
-            newRot = Quaternion.LookRotation(targetPos - midPos);
-            angle = Vector3.Angle(endPos - midPos, targetPos - midPos);
-            _endBone.RotateImmediate(newRot, angle);
+            Quaternion newRot = Quaternion.FromToRotation(midPos - rootPos, targetPos - rootPos);
+            // Quaternion.AxisAngle();
+            Vector3 newFwd = newRot * _baseBone.transform.forward;
+            newRot = Quaternion.LookRotation(newFwd, Vector3.up);
+            float angle = Vector3.Angle(newFwd, _baseBone.transform.forward);
+            if (Mathf.Abs(angle) > _minAngleDiff)
+                _baseBone.RotateImmediate(newRot, angle);
         }
+        
+        // End bone rotation calculation is the same for both cases: orient towards target
+        midPos = _endBone.transform.position;
+        endPos = _endBone.EndPoint.position;
+        Quaternion newEndRot = Quaternion.FromToRotation(endPos - midPos, targetPos - midPos);
+        Vector3 newEndFwd = newEndRot * _endBone.transform.forward;
+        newEndRot = Quaternion.LookRotation(newEndFwd, Vector3.up);
+        float newEndAngle = Vector3.Angle(newEndFwd, _endBone.transform.forward);
+        if (Mathf.Abs(newEndAngle) > _minAngleDiff)
+            _endBone.Rotate(newEndRot, newEndAngle);
+
+        return true;
     }
+
+    /*
     private void MoveToFaceTarget()
     {
         // Orient base bone to target
@@ -122,8 +133,13 @@ public class Axon_System_TwoBones : Axon_System
         // Make end point face target
         midPos = _endBone.transform.position;
         endPos = _endBone.EndPoint.position;
-        newRot = Quaternion.FromToRotation(_endBoneOrientation, targetPos - endPos);
-        angle = Vector3.Angle(_endBoneOrientation, targetPos - endPos);
-        _endBone.Rotate(newRot, angle);
+        Vector3 worldRotation = _endBoneOrientation;
+        worldRotation = Quaternion.FromToRotation(_endBone.transform.forward, _endBoneOrientation) * worldRotation;
+        Vector3 targetDir = targetPos - midPos;
+        newRot = Quaternion.FromToRotation(worldRotation.normalized, targetDir.normalized);
+        angle = Vector3.Angle(worldRotation, targetDir);
+        if (angle > 1.0f)
+            _endBone.RotateImmediate(newRot, angle);
     }
+    */
 }

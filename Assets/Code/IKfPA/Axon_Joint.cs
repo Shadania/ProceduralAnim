@@ -21,8 +21,8 @@ public struct FreedomDegree
         rotZ = 0x20
     }
     [SerializeField] public FreedomAxis Axis;
-    [SerializeField] public float minAmt;
-    [SerializeField] public float maxAmt;
+    [SerializeField] public float lowerLim;
+    [SerializeField] public float upperLim;
     [SerializeField] public float restingAmt;
 }
 
@@ -58,12 +58,13 @@ public struct TransformMinimal
 /// </summary>
 public class Axon_Joint : MonoBehaviour
 {
+    #region Parameters and Variables
 #pragma warning disable 414
 #pragma warning disable 649
     [Header("General Axon Joint Settings")]
     [Tooltip("Max angular speed of this joint in degrees/sec")]
     [SerializeField] private float _maxAngularSpeed = 150.0f;
-    [Tooltip("Transform at the end of this bone, used for physics calculations involving weight, gravity, etc")]
+    [Tooltip("Transform at the end of this bone, used for physics and target calculations: A bone will point their end at their target")]
     [SerializeField] private Transform _endPoint;
     // Used by System
     public Transform EndPoint { get { return _endPoint; } }
@@ -98,12 +99,14 @@ public class Axon_Joint : MonoBehaviour
 
     private TransformMinimal _parentTransform = new TransformMinimal();
     private TransformMinimal _actualEndPos = new TransformMinimal();
+    private TransformMinimal _startingPos = new TransformMinimal();
     private Vector3 _prevVelocity = new Vector3();
 
     private bool _checkLimits = false;
     private bool _hasMoved = false;
     private bool _didLateUpdate = false;
 #pragma warning restore
+    #endregion
 
 
     private void Awake()
@@ -116,8 +119,11 @@ public class Axon_Joint : MonoBehaviour
         _actualEndPos = CaptureEndPointTransform();
 
         ClampParameters();
+
+        CaptureStartTransform();
     }
 
+    #region Updating
     public void DoEarlyFixedUpdate()
     {
         _hasMoved = false;
@@ -150,15 +156,19 @@ public class Axon_Joint : MonoBehaviour
         {
             CheckLimits();
         }
-    }
-    public void DoFinalFixedUpdate()
-    {
-        // if this is left inside the does smooth motion if statement, there is jitter on turning off and on
+
         _actualEndPos = CaptureEndPointTransform();
 
         _parentTransform = CaptureParentTransform();
     }
-
+    public void DoFinalFixedUpdate()
+    {
+        // if this is left inside the does smooth motion if statement, there is jitter on turning off and on
+        // _actualEndPos = CaptureEndPointTransform();
+        // 
+        // _parentTransform = CaptureParentTransform();
+    }
+    #endregion Updating
 
     #region Capture Transforms
     private TransformMinimal CaptureParentTransform()
@@ -189,6 +199,14 @@ public class Axon_Joint : MonoBehaviour
 
         return result;
     }
+    private void CaptureStartTransform()
+    {
+        _startingPos.pos = transform.position;
+        _startingPos.localPos = transform.localPosition;
+        _startingPos.rot = transform.rotation.eulerAngles;
+        _startingPos.localRot = transform.localRotation.eulerAngles;
+        _startingPos.parent = transform.parent;
+    }
     #endregion
 
     #region Awake Functionality
@@ -201,7 +219,7 @@ public class Axon_Joint : MonoBehaviour
             foreach (var degree in _degreesOfFreedom)
             {
                 // Min amount should never be greater than max amount.
-                if (degree.minAmt > degree.maxAmt)
+                if (degree.lowerLim > degree.upperLim)
                 {
                     Debug.LogError($"Joint {(_name.Length > 0 ? _name : gameObject.name)} has a degree of freedom with minamt greater than maxamt", this);
                     return false;
@@ -251,6 +269,7 @@ public class Axon_Joint : MonoBehaviour
         _hasMoved = true;
         DoLateFixedUpdate();
     }
+
     public void SetMoved(bool moved)
     {
         _hasMoved = moved;
@@ -286,18 +305,16 @@ public class Axon_Joint : MonoBehaviour
                     break;
                 case FreedomDegree.FreedomAxis.rotX:
                     {
-                        float maxLim = deg.maxAmt + deg.restingAmt;
-                        float minLim = deg.restingAmt - deg.maxAmt;
                         bool didChange = false;
 
-                        if (newEulerAngles.x > maxLim)
+                        if (newEulerAngles.x > deg.upperLim)
                         {
-                            newEulerAngles.x = maxLim;
+                            newEulerAngles.x = deg.upperLim;
                             didChange = true;
                         }
-                        else if (newEulerAngles.x < minLim)
+                        else if (newEulerAngles.x < deg.lowerLim)
                         {
-                            newEulerAngles.x = minLim;
+                            newEulerAngles.x = deg.lowerLim;
                             didChange = true;
                         }
 
@@ -313,18 +330,16 @@ public class Axon_Joint : MonoBehaviour
                     break;
                 case FreedomDegree.FreedomAxis.rotY:
                     {
-                        float maxLim = deg.maxAmt + deg.restingAmt;
-                        float minLim = -deg.maxAmt + deg.restingAmt;
                         bool didChange = false;
 
-                        if (newEulerAngles.y > maxLim)
+                        if (newEulerAngles.y > deg.upperLim)
                         {
-                            newEulerAngles.y = maxLim;
+                            newEulerAngles.y = deg.upperLim;
                             didChange = true;
                         }
-                        else if (newEulerAngles.y < minLim)
+                        else if (newEulerAngles.y < deg.lowerLim)
                         {
-                            newEulerAngles.y = minLim;
+                            newEulerAngles.y = deg.lowerLim;
                             didChange = true;
                         }
 
@@ -340,18 +355,16 @@ public class Axon_Joint : MonoBehaviour
                     break;
                 case FreedomDegree.FreedomAxis.rotZ:
                     {
-                        float maxLim = deg.maxAmt + deg.restingAmt;
-                        float minLim = -deg.maxAmt + deg.restingAmt;
                         bool didChange = false;
 
-                        if (newEulerAngles.z > maxLim)
+                        if (newEulerAngles.z > deg.upperLim)
                         {
-                            newEulerAngles.z = maxLim;
+                            newEulerAngles.z = deg.upperLim;
                             didChange = true;
                         }
-                        else if (newEulerAngles.z < minLim)
+                        else if (newEulerAngles.z < deg.lowerLim)
                         {
-                            newEulerAngles.z = minLim;
+                            newEulerAngles.z = deg.lowerLim;
                             didChange = true;
                         }
 
@@ -371,7 +384,7 @@ public class Axon_Joint : MonoBehaviour
 
         var newPos = transform.position;
 
-        for (int i = 1; i < 0x20; i *= 2)
+        for (int i = 1; i < 0x40; i *= 2)
         {
             var result = (FreedomDegree.FreedomAxis)(usedAxes & i);
             // We don't want to limit what we've already gone over
@@ -383,22 +396,22 @@ public class Axon_Joint : MonoBehaviour
             switch ((FreedomDegree.FreedomAxis)i)
             {
                 case FreedomDegree.FreedomAxis.moveX:
-                    newPos.x = 0;
+                    newPos.x = _startingPos.localPos.x;
                     break;
                 case FreedomDegree.FreedomAxis.moveY:
-                    newPos.y = 0;
+                    newPos.y = _startingPos.localPos.y;
                     break;
                 case FreedomDegree.FreedomAxis.moveZ:
-                    newPos.z = 0;
+                    newPos.z = _startingPos.localPos.z;
                     break;
                 case FreedomDegree.FreedomAxis.rotX:
-                    newEulerAngles.x = 0;
+                    newEulerAngles.x = _startingPos.localRot.x;
                     break;
                 case FreedomDegree.FreedomAxis.rotY:
-                    newEulerAngles.y = 0;
+                    newEulerAngles.y = _startingPos.localRot.y;
                     break;
                 case FreedomDegree.FreedomAxis.rotZ:
-                    newEulerAngles.z = 0;
+                    newEulerAngles.z = _startingPos.localRot.z;
                     break;
             }
         }
@@ -442,7 +455,7 @@ public class Axon_Joint : MonoBehaviour
                     //TODO
                     break;
                 case FreedomDegree.FreedomAxis.rotX:
-                    if (Mathf.Abs(newEulerAngles.x) > (deg.minAmt + deg.restingAmt))
+                    if (Mathf.Abs(newEulerAngles.x) > (deg.lowerLim + deg.restingAmt))
                     {
                         if (newEulerAngles.x < deg.restingAmt)
                         {
@@ -455,7 +468,7 @@ public class Axon_Joint : MonoBehaviour
                     }
                     break;
                 case FreedomDegree.FreedomAxis.rotY:
-                    if (Mathf.Abs(newEulerAngles.y) > (deg.minAmt + deg.restingAmt))
+                    if (Mathf.Abs(newEulerAngles.y) > (deg.lowerLim + deg.restingAmt))
                     {
                         if (newEulerAngles.y < deg.restingAmt)
                         {
@@ -469,7 +482,7 @@ public class Axon_Joint : MonoBehaviour
 
                     break;
                 case FreedomDegree.FreedomAxis.rotZ:
-                    if (Mathf.Abs(newEulerAngles.z) > (deg.minAmt + deg.restingAmt))
+                    if (Mathf.Abs(newEulerAngles.z) > (deg.lowerLim + deg.restingAmt))
                     {
                         if (newEulerAngles.z < deg.restingAmt)
                         {
