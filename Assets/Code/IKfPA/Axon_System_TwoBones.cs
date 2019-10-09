@@ -85,9 +85,10 @@ public sealed class Axon_System_TwoBones : Axon_System
 
             // Apply this first transformation to the root bone
             Quaternion newRot = Quaternion.FromToRotation(midPos - rootPos, elbowPos - rootPos);
+            float angle = Vector3.Angle(midPos - rootPos, elbowPos - rootPos);
             Vector3 newFwd = newRot * _baseBone.transform.forward;
             newRot = Quaternion.LookRotation(newFwd, Vector3.up);
-            float angle = Vector3.Angle(newFwd, _baseBone.transform.forward);
+            // float angle = Vector3.Angle(newFwd, _baseBone.transform.forward);
             if (Mathf.Abs(angle) > _minAngleDiff)
                 _baseBone.RotateImmediate(newRot, angle);
         }
