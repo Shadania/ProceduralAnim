@@ -65,8 +65,7 @@ public sealed class Axon_System_TwoBones : Axon_System
 
         if (totalSystemLength > distRootToTarget)
         {
-            // BASE BONE MATH
-            // calculate where the elbow joint has to go
+            // ELBOW JOINT CALCULATIONS
             Vector3 midPos1D = Vector3.Lerp(rootPos, targetPos, rootBoneLength / totalSystemLength); // One-dimensional
             // Three-dimensional
             // Find the first axis, going sideways from our endpoint
@@ -83,36 +82,71 @@ public sealed class Axon_System_TwoBones : Axon_System
             float triHeight = 2 * triArea / baseLength; // Triangle area formula (area = base * height / 2) transformed
             Vector3 elbowPos = midPos1D + swivAxis.normalized * triHeight;
 
+            // TWIST ANGLE
+            // Find the angle between the planes defined by (Root, Mid, End) and (Root, Mid, Target)
+
+            // Vector3 twistAxis = (midPos - rootPos).normalized;
+            // Vector3 planeNormal1 = Vector3.Cross(endPos - swivPos, twistAxis); // Can't use midpos here: if midpos is colinear with end and root, this vec is nullvec
+            // Vector3 planeNormal2 = Vector3.Cross(targetPos - swivPos, twistAxis); // Swiv should be out of the way most of the time
+            // float twistAngle = Vector3.Angle(planeNormal1, planeNormal2);
+            // float dotProd = Vector3.Dot(planeNormal1, targetPos - rootPos);
+            // if (dotProd < 0)
+            //     twistAngle *= -1.0f;
+            // Quaternion twistQuat = Quaternion.AngleAxis(twistAngle, twistAxis);
+            // // Transform twist to forward
+            // Quaternion rotToTwist = Quaternion.FromToRotation(_baseBone.transform.forward, twistAxis);
+            // Quaternion rotToFwd = Quaternion.FromToRotation(twistAxis, _baseBone.transform.forward);
+            // Quaternion fwdTwistQuat = rotToTwist * twistQuat * rotToFwd;
+            // if (Mathf.Abs(twistAngle) > _minAngleDiff)
+            //     _baseBone.RotateImmediate(fwdTwistQuat, twistAngle);
+            // midPos = _endBone.transform.position;
+            // endPos = _endBone.EndPoint.position;
+
+            // if (Mathf.Abs(twistAngle) > _minAngleDiff)
+            // {
+            //     _baseBone.RotateImmediate(twistQuat, twistAngle);
+            // }
+
+            // Debug.Log($"Base bone angle: {_baseBone.transform.rotation.eulerAngles.x}, Twist angle to go: {twistAngle}");
+
             // Apply this first transformation to the root bone
             Quaternion newRot = Quaternion.FromToRotation(midPos - rootPos, elbowPos - rootPos);
             float angle = Vector3.Angle(midPos - rootPos, elbowPos - rootPos);
             Vector3 newFwd = newRot * _baseBone.transform.forward;
             newRot = Quaternion.LookRotation(newFwd, Vector3.up);
-            // float angle = Vector3.Angle(newFwd, _baseBone.transform.forward);
-            if (Mathf.Abs(angle) > _minAngleDiff)
-                _baseBone.RotateImmediate(newRot, angle);
+            /// if (Mathf.Abs(angle) > _minAngleDiff)    
+                /// _baseBone.RotateImmediate(newRot, angle);
+
+            // Debug.Log($"Angle: {twistAngle.ToString()}, Axis: {twistAxis.ToString()}, Current angle: {_baseBone.transform.rotation.eulerAngles.ToString()}");
         }
         else
         {
             // need to fully stretch out towards the target, older one first
             Quaternion newRot = Quaternion.FromToRotation(midPos - rootPos, targetPos - rootPos);
-            // Quaternion.AxisAngle();
+            float angle = Vector3.Angle(midPos - rootPos, targetPos - rootPos);
             Vector3 newFwd = newRot * _baseBone.transform.forward;
             newRot = Quaternion.LookRotation(newFwd, Vector3.up);
-            float angle = Vector3.Angle(newFwd, _baseBone.transform.forward);
-            if (Mathf.Abs(angle) > _minAngleDiff)
-                _baseBone.RotateImmediate(newRot, angle);
+            /// if (Mathf.Abs(angle) > _minAngleDiff)
+                /// _baseBone.RotateImmediate(newRot, angle);
         }
         
         // End bone rotation calculation is the same for both cases: orient towards target
         midPos = _endBone.transform.position;
         endPos = _endBone.EndPoint.position;
+        float deltaAngle = Vector3.Angle(endPos - midPos, targetPos - midPos);
         Quaternion newEndRot = Quaternion.FromToRotation(endPos - midPos, targetPos - midPos);
+        // Quaternion newEndRot = Quaternion.AngleAxis(deltaAngle, Vector3.Cross(endPos - midPos, targetPos - midPos));
         Vector3 newEndFwd = newEndRot * _endBone.transform.forward;
         newEndRot = Quaternion.LookRotation(newEndFwd, Vector3.up);
-        float newEndAngle = Vector3.Angle(newEndFwd, _endBone.transform.forward);
-        if (Mathf.Abs(newEndAngle) > _minAngleDiff)
-            _endBone.Rotate(newEndRot, newEndAngle);
+
+        // Vector3 newEulerAngles = new Vector3(0, 0, 290);
+        // newEndRot = Quaternion.Euler(newEulerAngles);
+
+        if (Mathf.Abs(deltaAngle) > _minAngleDiff)
+            /// _endBone.Rotate(_endBone.transform.rotation * newEndRot, deltaAngle);
+
+
+        Debug.Log(deltaAngle);
 
         return true;
     }

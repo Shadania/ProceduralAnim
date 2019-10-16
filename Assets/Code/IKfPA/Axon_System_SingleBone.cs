@@ -11,17 +11,17 @@ public sealed class Axon_System_SingleBone : Axon_System
 
     override protected bool MoveToTarget()
     {
-        var targetpos = _target.transform.position;
-        var endpos = _bone.EndPoint.position;
-        var basePos = _bone.transform.position;
+        var targetPos = _target.transform.position;
+        var endPos = _bone.EndPoint.position;
+        var rootPos = _bone.transform.position;
 
-        var targetVec = targetpos - basePos;
-        var endVec = endpos - basePos;
+        var targetVec = targetPos - rootPos;
+        var endVec = endPos - rootPos;
 
-        if (targetVec.sqrMagnitude > 0.1f && endVec.sqrMagnitude > 0.1f)
+        if (targetVec.sqrMagnitude > 0.1f)
         {
             var rotAngle = Vector3.Angle(endVec, targetVec);
-            var distToGo = (endpos - targetpos).magnitude;
+            var distToGo = (endPos - targetPos).magnitude;
             
             if (distToGo < _minTargetRange)
             {
@@ -44,8 +44,10 @@ public sealed class Axon_System_SingleBone : Axon_System
 
             if (Mathf.Abs(rotAngle) > 1.0f)
             {
-                Quaternion targetRot = Quaternion.LookRotation(targetVec.normalized, _bone.transform.up);
-                _bone.Rotate(targetRot, rotAngle);
+                Quaternion targetRot = Quaternion.FromToRotation(_bone.OrigEndLocalPos, targetPos - rootPos);
+                Vector3 newFwd = targetRot * _bone.OrigFwd;
+
+                _bone.EulerLookDirection(newFwd);
             }
         }
         else

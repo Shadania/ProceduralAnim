@@ -74,6 +74,8 @@ public class Axon_Joint : MonoBehaviour
     [Tooltip("Will this bone droop according to gravity? Uses the weight param and the endpoint of the bone")]
     [SerializeField] private bool _doesDroop = true;
 
+    [Tooltip("Do we or do we not care about the below degrees of freedom?")]
+    [SerializeField] private bool _respectsLimits = true;
     [Tooltip("If not specified, system will assume there is no freedom to move on this axis. Can also only have one freedom degree per axis")]
     [SerializeField] private List<FreedomDegree> _degreesOfFreedom = new List<FreedomDegree>();
 
@@ -93,6 +95,7 @@ public class Axon_Joint : MonoBehaviour
     [Tooltip("How fast does it catch up with targetpos? (0: not at all, 1: does not lag at all)")]
     [SerializeField] private float _smoothMotionRate = 0.5f;
 
+    [Header("Mainly for monitoring, is safe to change")]
 
     private bool _valid = false;
     public bool IsValid { get { return _valid; } }
@@ -101,6 +104,16 @@ public class Axon_Joint : MonoBehaviour
     private TransformMinimal _actualEndPos = new TransformMinimal();
     private TransformMinimal _startingPos = new TransformMinimal();
     private Vector3 _prevVelocity = new Vector3();
+
+    private Vector3 _prevEulerAngles = new Vector3();
+    private Vector3 _currEulerAngles = new Vector3();
+    [SerializeField] private Vector3 _idealEulerAngles = new Vector3();
+    private float _currTwistAngle = 0.0f;
+    [SerializeField] private float _idealTwistAngle = 0.0f;
+    private Vector3 _origFwd = new Vector3();
+    public Vector3 OrigFwd { get { return _origFwd; } }
+    private Vector3 _origEndLocalPos = new Vector3();
+    public Vector3 OrigEndLocalPos { get { return _origEndLocalPos; } }
 
     private bool _checkLimits = false;
     private bool _hasMoved = false;
@@ -121,6 +134,10 @@ public class Axon_Joint : MonoBehaviour
         ClampParameters();
 
         CaptureStartTransform();
+
+        _currEulerAngles = _prevEulerAngles = _idealEulerAngles = transform.rotation.eulerAngles;
+        _origFwd = transform.forward;
+        _origEndLocalPos = _endPoint.localPosition;
     }
 
     #region Updating
@@ -135,6 +152,8 @@ public class Axon_Joint : MonoBehaviour
         if (_didLateUpdate)
             return;
         _didLateUpdate = true;
+
+        UpdateRotationValues(); // THIS NEEDS TO ONLY BE DONE EXACTLY ONCE OR WE ARE GONNA HAVE ANGVEL DIFFS
 
         if (_hasMoved == false && _doesReturnToRest)
         {
@@ -152,9 +171,10 @@ public class Axon_Joint : MonoBehaviour
             HandleSmoothMotion();
         }
         
-        if (_checkLimits)
+        if (_checkLimits && _respectsLimits)
         {
-            CheckLimits();
+            CheckLimits(ref _currEulerAngles);
+            _checkLimits = false;
         }
 
         _actualEndPos = CaptureEndPointTransform();
@@ -163,10 +183,9 @@ public class Axon_Joint : MonoBehaviour
     }
     public void DoFinalFixedUpdate()
     {
-        // if this is left inside the does smooth motion if statement, there is jitter on turning off and on
-        // _actualEndPos = CaptureEndPointTransform();
-        // 
-        // _parentTransform = CaptureParentTransform();
+        // apply the newest rotation
+        transform.localRotation = Quaternion.Euler(_currEulerAngles) * Quaternion.AngleAxis(_currTwistAngle, EndPoint.localPosition);
+        _prevEulerAngles = _currEulerAngles;
     }
     #endregion Updating
 
@@ -255,14 +274,15 @@ public class Axon_Joint : MonoBehaviour
     }
     #endregion
 
+    #region Rotation
+    [System.Obsolete("This functionality is going to be outdated soon because of bad system architecture")]
     public void Rotate(Quaternion targetRot, float remainingDegrees)
     {
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, Mathf.Min(remainingDegrees * _rotSpeed, _maxAngularSpeed) * Time.deltaTime);
         _checkLimits = true;
         _didLateUpdate = false;
     }
-    // Only use this one if you're sure this is the last move function called on this joint, else resources are wasted,
-    // unless you need to check twice for some reason.
+    [System.Obsolete("This functionality is going to be outdated soon because of bad system architecture")]
     public void RotateImmediate(Quaternion targetRot, float remainingDegrees)
     {
         Rotate(targetRot, remainingDegrees);
@@ -270,23 +290,162 @@ public class Axon_Joint : MonoBehaviour
         DoLateFixedUpdate();
     }
 
+    public void EulerLookDirection(Vector3 dir)
+    {
+        dir = dir.normalized;
+        // Angles on planes XY, YZ, XZ
+        Vector3 rotation = new Vector3();
+
+        Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
+        rotation = rot.eulerAngles;
+        
+        List<FreedomDegree.FreedomAxis> axes = new List<FreedomDegree.FreedomAxis>();
+        if ((axes = CheckLimits(ref rotation)).Count > 0)
+        {
+            // Is it all axes or just one or two
+            if (axes.Count == 3)
+            {
+                // There is nothing to be done if everything is at their limits already
+                _idealEulerAngles = rotation;
+                return;
+            }
+
+            
+            // Check which axes are not okay, and find a way to still reach the destination without them
+            foreach (var axis in axes)
+            {
+                switch (axis)
+                {
+                    case FreedomDegree.FreedomAxis.rotX:
+
+                        if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
+                        {
+                            if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotZ))
+                        {
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else
+                        {
+                            // Check which axis is closest to the point
+                            float distY = Axon_Utils.DistPointToLine(transform.position + dir, new Vector3(0, 1, 0), transform.position);
+                            float distZ = Axon_Utils.DistPointToLine(transform.position + dir, new Vector3(0, 0, 1), transform.position);
+
+                            if (distY < distZ)
+                            {
+                                if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                            else
+                            {
+                                if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                        }
+
+                        break;
+                    case FreedomDegree.FreedomAxis.rotY:
+
+                        if (axes.Contains(FreedomDegree.FreedomAxis.rotZ))
+                        {
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
+                        {
+                            if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else
+                        {
+                            // Check which axis is closest to the point
+                            float distX = Axon_Utils.DistPointToLine(transform.position + dir, new Vector3(1, 0, 0), transform.position);
+                            float distZ = Axon_Utils.DistPointToLine(transform.position + dir, new Vector3(0, 0, 1), transform.position);
+
+                            if (distX < distZ)
+                            {
+                                if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                            else
+                            {
+                                if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                        }
+
+                        break;
+                    case FreedomDegree.FreedomAxis.rotZ:
+                        if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
+                        {
+                            if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
+                        {
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else
+                        {
+                            // Check which axis is closest to the point
+                            float distX = Axon_Utils.DistPointToLine(dir + transform.position, new Vector3(1, 0, 0), transform.position);
+                            float distY = Axon_Utils.DistPointToLine(dir + transform.position, new Vector3(0, 1, 0), transform.position);
+
+                            if (distX < distY)
+                            {
+                                if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                            else
+                            { 
+                                if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+
+        _idealEulerAngles = rotation;
+    }
+    public void EulerTwist(float degrees)
+    {
+        _idealTwistAngle = degrees;
+    }
+
+    private List<FreedomDegree.FreedomAxis> RotateAroundX(ref Vector3 rotation, Vector3 dir)
+    {
+        rotation.x = Mathf.Atan2(-dir.y, dir.z) * Mathf.Rad2Deg;
+        return CheckLimits(ref rotation);
+    }
+    private List<FreedomDegree.FreedomAxis> RotateAroundY(ref Vector3 rotation, Vector3 dir)
+    {
+        rotation.y = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        return CheckLimits(ref rotation);
+    }
+    private List<FreedomDegree.FreedomAxis> RotateAroundZ(ref Vector3 rotation, Vector3 dir)
+    {
+        rotation.z = Mathf.Atan2(-dir.x, dir.y) * Mathf.Rad2Deg;
+        return CheckLimits(ref rotation);
+    }
+    #endregion
+
+
+
     public void SetMoved(bool moved)
     {
         _hasMoved = moved;
     }
 
     #region FixedUpdate
-    private void CheckLimits()
+    /// <summary>
+    /// Check if the given angles fit in the limits of this joint and changes them to be so if they are not.
+    /// </summary>
+    /// <param name="angles"> What angles do you want to check the limits of? </param>
+    /// <returns> Did the function change the value of the parameters? </returns>
+    private List<FreedomDegree.FreedomAxis> CheckLimits(ref Vector3 angles)
     {
-        var rot = transform.localRotation;
-        var newEulerAngles = rot.eulerAngles;
+        if (angles.x > 180)
+            angles.x -= 360;
+        if (angles.y > 180)
+            angles.y -= 360;
+        if (angles.z > 180)
+            angles.z -= 360;
 
-        if (newEulerAngles.x > 180)
-            newEulerAngles.x -= 360;
-        if (newEulerAngles.y > 180)
-            newEulerAngles.y -= 360;
-        if (newEulerAngles.z > 180)
-            newEulerAngles.z -= 360;
+        List<FreedomDegree.FreedomAxis> res = new List<FreedomDegree.FreedomAxis>();
 
         int usedAxes = 0;
 
@@ -307,23 +466,25 @@ public class Axon_Joint : MonoBehaviour
                     {
                         bool didChange = false;
 
-                        if (newEulerAngles.x > deg.upperLim)
+                        if (angles.x > deg.upperLim)
                         {
-                            newEulerAngles.x = deg.upperLim;
+                            angles.x = deg.upperLim;
                             didChange = true;
                         }
-                        else if (newEulerAngles.x < deg.lowerLim)
+                        else if (angles.x < deg.lowerLim)
                         {
-                            newEulerAngles.x = deg.lowerLim;
+                            angles.x = deg.lowerLim;
                             didChange = true;
                         }
 
                         if (didChange)
                         {
-                            if (newEulerAngles.x > 180.0f)
-                                newEulerAngles.x -= 360.0f;
-                            else if (newEulerAngles.x < -180.0f)
-                                newEulerAngles.x += 360.0f;
+                            if (angles.x > 180.0f)
+                                angles.x -= 360.0f;
+                            else if (angles.x < -180.0f)
+                                angles.x += 360.0f;
+
+                            res.Add(FreedomDegree.FreedomAxis.rotX);
                         }
                     }
 
@@ -332,23 +493,25 @@ public class Axon_Joint : MonoBehaviour
                     {
                         bool didChange = false;
 
-                        if (newEulerAngles.y > deg.upperLim)
+                        if (angles.y > deg.upperLim)
                         {
-                            newEulerAngles.y = deg.upperLim;
+                            angles.y = deg.upperLim;
                             didChange = true;
                         }
-                        else if (newEulerAngles.y < deg.lowerLim)
+                        else if (angles.y < deg.lowerLim)
                         {
-                            newEulerAngles.y = deg.lowerLim;
+                            angles.y = deg.lowerLim;
                             didChange = true;
                         }
 
                         if (didChange)
                         {
-                            if (newEulerAngles.y > 180.0f)
-                                newEulerAngles.y -= 360.0f;
-                            else if (newEulerAngles.y < -180.0f)
-                                newEulerAngles.y += 360.0f;
+                            if (angles.y > 180.0f)
+                                angles.y -= 360.0f;
+                            else if (angles.y < -180.0f)
+                                angles.y += 360.0f;
+
+                            res.Add(FreedomDegree.FreedomAxis.rotY);
                         }
                     }
 
@@ -357,23 +520,25 @@ public class Axon_Joint : MonoBehaviour
                     {
                         bool didChange = false;
 
-                        if (newEulerAngles.z > deg.upperLim)
+                        if (angles.z > deg.upperLim)
                         {
-                            newEulerAngles.z = deg.upperLim;
+                            angles.z = deg.upperLim;
                             didChange = true;
                         }
-                        else if (newEulerAngles.z < deg.lowerLim)
+                        else if (angles.z < deg.lowerLim)
                         {
-                            newEulerAngles.z = deg.lowerLim;
+                            angles.z = deg.lowerLim;
                             didChange = true;
                         }
 
                         if (didChange)
                         {
-                            if (newEulerAngles.z > 180.0f)
-                                newEulerAngles.z -= 360.0f;
-                            else if (newEulerAngles.z < -180.0f)
-                                newEulerAngles.z += 360.0f;
+                            if (angles.z > 180.0f)
+                                angles.z -= 360.0f;
+                            else if (angles.z < -180.0f)
+                                angles.z += 360.0f;
+
+                            res.Add(FreedomDegree.FreedomAxis.rotZ);
                         }
                     }
 
@@ -396,38 +561,38 @@ public class Axon_Joint : MonoBehaviour
             switch ((FreedomDegree.FreedomAxis)i)
             {
                 case FreedomDegree.FreedomAxis.moveX:
-                    newPos.x = _startingPos.localPos.x;
+                    newPos.x = _startingPos.localPos.x; // TODO
                     break;
                 case FreedomDegree.FreedomAxis.moveY:
-                    newPos.y = _startingPos.localPos.y;
+                    newPos.y = _startingPos.localPos.y; // TODO
                     break;
                 case FreedomDegree.FreedomAxis.moveZ:
-                    newPos.z = _startingPos.localPos.z;
+                    newPos.z = _startingPos.localPos.z; // TODO
                     break;
                 case FreedomDegree.FreedomAxis.rotX:
-                    newEulerAngles.x = _startingPos.localRot.x;
+                    angles.x = _startingPos.localRot.x;
+                    res.Add(FreedomDegree.FreedomAxis.rotZ);
                     break;
                 case FreedomDegree.FreedomAxis.rotY:
-                    newEulerAngles.y = _startingPos.localRot.y;
+                    res.Add(FreedomDegree.FreedomAxis.rotY);
+                    angles.y = _startingPos.localRot.y;
                     break;
                 case FreedomDegree.FreedomAxis.rotZ:
-                    newEulerAngles.z = _startingPos.localRot.z;
+                    res.Add(FreedomDegree.FreedomAxis.rotZ);
+                    angles.z = _startingPos.localRot.z;
                     break;
             }
         }
 
         // Put euler angles back in 0 - 360
-        if (newEulerAngles.x < 0.0f)
-            newEulerAngles.x += 360;
-        if (newEulerAngles.y < 0.0f)
-            newEulerAngles.y += 360;
-        if (newEulerAngles.z < 0.0f)
-            newEulerAngles.z += 360;
+        if (angles.x < 0.0f)
+            angles.x += 360;
+        if (angles.y < 0.0f)
+            angles.y += 360;
+        if (angles.z < 0.0f)
+            angles.z += 360;
 
-        rot.eulerAngles = newEulerAngles;
-        transform.localRotation = rot;
-
-        _checkLimits = false;
+        return res;
     }
     private void ReturnToRest()
     {
@@ -537,5 +702,93 @@ public class Axon_Joint : MonoBehaviour
 
         _checkLimits = true;
     }
+    private void UpdateRotationValues()
+    {
+        if (Mathf.Abs(_currEulerAngles.x) > 360.0f)
+        {
+            _currEulerAngles.x -= ((int)_currEulerAngles.x / 360) * 360;
+        }
+        if (Mathf.Abs(_currEulerAngles.y) > 360.0f)
+        {
+            _currEulerAngles.y -= ((int)_currEulerAngles.y / 360) * 360;
+        }
+        if (Mathf.Abs(_currEulerAngles.z) > 360.0f)
+        {
+            _currEulerAngles.z -= ((int)_currEulerAngles.z / 360) * 360;
+        }
+
+        // X ANGLE
+        float diffRotX = _idealEulerAngles.x - _currEulerAngles.x;
+        if (Mathf.Abs(diffRotX) > 180.0f)
+        {
+            if (diffRotX > 0.0f)
+                diffRotX -= 360.0f;
+            else
+                diffRotX += 360.0f;
+        }
+        if (diffRotX > 0.0f)
+        {
+            _currEulerAngles.x += Mathf.Min(diffRotX, _rotSpeed);
+            _checkLimits = true;
+        }
+        else if (diffRotX < 0.0f)
+        {
+            _currEulerAngles.x += -Mathf.Min(Mathf.Abs(diffRotX), _rotSpeed);
+            _checkLimits = true;
+        }
+
+        // Y ANGLE
+        float diffRotY = _idealEulerAngles.y - _currEulerAngles.y;
+        if (Mathf.Abs(diffRotY) > 180.0f)
+        {
+            if (diffRotY > 0.0f)
+                diffRotY -= 360.0f;
+            else
+                diffRotY += 360.0f;
+        }
+        else if (Mathf.Abs(diffRotY) == 180.0f)
+        {
+            // this happens sometimes.
+
+        }
+        if (diffRotY > 0.0f)
+        {
+            _currEulerAngles.y += Mathf.Min(diffRotY, _rotSpeed);
+            _checkLimits = true;
+        }
+        else if (diffRotY < 0.0f)
+        {
+            _currEulerAngles.y += -Mathf.Min(Mathf.Abs(diffRotY), _rotSpeed);
+            _checkLimits = true;
+        }
+
+        // Z ANGLE
+        float diffRotZ = _idealEulerAngles.z - _currEulerAngles.z;
+        if (Mathf.Abs(diffRotZ) > 180.0f)
+        {
+            if (diffRotZ > 0.0f)
+                diffRotZ -= 360.0f;
+            else
+                diffRotZ += 360.0f;
+        }
+        if (diffRotZ > 0.0f)
+        {
+            _currEulerAngles.z += Mathf.Min(diffRotZ, _rotSpeed);
+            _checkLimits = true;
+        }
+        else if (diffRotZ < 0.0f)
+        {
+            _currEulerAngles.z += -Mathf.Min(Mathf.Abs(diffRotZ), _rotSpeed);
+            _checkLimits = true;
+        }
+
+        // TWIST
+        var diffTwist = _idealTwistAngle - _currTwistAngle;
+        _currTwistAngle += Mathf.Min(diffTwist, _rotSpeed);
+    }
+    #endregion
+
+    #region Utility
+
     #endregion
 }
