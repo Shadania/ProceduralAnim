@@ -44,10 +44,41 @@ public sealed class Axon_System_SingleBone : Axon_System
 
             if (Mathf.Abs(rotAngle) > 1.0f)
             {
-                Quaternion targetRot = Quaternion.FromToRotation(_bone.OrigEndLocalPos, targetPos - rootPos);
-                Vector3 newFwd = targetRot * _bone.OrigFwd;
+                // Vector3 targVec = targetPos - rootPos;
+                // Debug.Log($"Target vector {targVec.ToString()}");
+                // Quaternion targetRot = Quaternion.FromToRotation(_bone.OrigEndLocalPos.normalized, targVec.normalized);
+                // Vector3 newFwd = targetRot * _bone.OrigFwd;
+                // _bone.transform.rotation = Quaternion.LookRotation(newFwd);
 
-                _bone.EulerLookDirection(newFwd);
+                // float angle = Vector3.SignedAngle(_bone.OrigEndLocalPos, _bone.OrigFwd, _bone.transform.right);
+                // Quaternion rot = Quaternion.AngleAxis(angle, _bone.transform.right);
+
+                // Quaternion rot = Quaternion.FromToRotation(_bone.OrigEndLocalPos, _bone.OrigFwd);
+                // Vector3 newFwd = rot * targVec;
+
+                // _bone.EulerLookDirection(newFwd);
+                // _bone.EulerLookDirection(targVec);
+                // _bone.transform.rotation = Quaternion.LookRotation(newFwd);
+
+
+                // WORKS PERFECTLY FINE
+                // MINUS THE FWD TWIST
+                Vector3 rootToEndNorm = _bone.OrigEndLocalPos.normalized;
+                Vector3 rootToTargetNorm = (targetPos - rootPos).normalized;
+                Quaternion rot = Quaternion.FromToRotation(rootToEndNorm, rootToTargetNorm);
+                Vector3 endToFwd = (_bone.OrigFwd - rootToEndNorm);
+                Vector3 rotatedEndToFwd = rot * endToFwd;
+                Vector3 newFwdPos = rootToTargetNorm + rotatedEndToFwd;
+
+                // The Joint will set this to a proper value anyway
+                _bone.transform.rotation = Quaternion.LookRotation(newFwdPos);
+                Vector3 rootToEnd = _bone.EndPoint.position - rootPos;
+
+                // Find out twist now, because we lost that twist when we went to forward.
+                float twistAngle = Vector3.SignedAngle(rootToEnd, rootToTargetNorm, newFwdPos);
+                _bone.EulerLookDirection(newFwdPos, twistAngle);
+
+                // _bone.transform.rotation = Quaternion.LookRotation(newFwdPos);
             }
         }
         else

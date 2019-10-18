@@ -18,7 +18,8 @@ public struct FreedomDegree
         moveZ = 0x04,
         rotX = 0x08,
         rotY = 0x10,
-        rotZ = 0x20
+        rotZ = 0x20,
+        twist = 0x40
     }
     [SerializeField] public FreedomAxis Axis;
     [SerializeField] public float lowerLim;
@@ -290,15 +291,18 @@ public class Axon_Joint : MonoBehaviour
         DoLateFixedUpdate();
     }
 
-    public void EulerLookDirection(Vector3 dir)
+    public void EulerLookDirection(Vector3 dir, float? fwdTwistAngle)
     {
         dir = dir.normalized;
+
+        Debug.Log($"({dir.x.ToString()},{dir.y.ToString()},{dir.z.ToString()})");
         // Angles on planes XY, YZ, XZ
         Vector3 rotation = new Vector3();
 
         Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
         rotation = rot.eulerAngles;
         
+        // Limited Rotation Fixes
         List<FreedomDegree.FreedomAxis> axes = new List<FreedomDegree.FreedomAxis>();
         if ((axes = CheckLimits(ref rotation)).Count > 0)
         {
@@ -398,6 +402,13 @@ public class Axon_Joint : MonoBehaviour
                 }
             }
         }
+        
+        if (fwdTwistAngle.HasValue)
+        {
+            rotation.z = fwdTwistAngle.Value;
+        }
+
+        Debug.Log(rotation.ToString());
 
         _idealEulerAngles = rotation;
     }
@@ -419,6 +430,7 @@ public class Axon_Joint : MonoBehaviour
     private List<FreedomDegree.FreedomAxis> RotateAroundZ(ref Vector3 rotation, Vector3 dir)
     {
         rotation.z = Mathf.Atan2(-dir.x, dir.y) * Mathf.Rad2Deg;
+        Debug.Log($"Trying to rotate {rotation.z.ToString()} degrees on Z");
         return CheckLimits(ref rotation);
     }
     #endregion
@@ -438,6 +450,11 @@ public class Axon_Joint : MonoBehaviour
     /// <returns> Did the function change the value of the parameters? </returns>
     private List<FreedomDegree.FreedomAxis> CheckLimits(ref Vector3 angles)
     {
+        if (_respectsLimits == false)
+        {
+            return new List<FreedomDegree.FreedomAxis>();
+        }
+
         if (angles.x > 180)
             angles.x -= 360;
         if (angles.y > 180)
