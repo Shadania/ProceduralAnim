@@ -148,6 +148,7 @@ MonoBehaviour:
   _endPoint: {fileID: 348088496}
   _weight: 1
   _doesDroop: 0
+  _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
   - Axis: 16
@@ -368,6 +369,7 @@ MonoBehaviour:
   _endPoint: {fileID: 1481807853}
   _weight: 1
   _doesDroop: 0
+  _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
   - Axis: 8
@@ -679,7 +681,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &609392062
 Transform:
   m_ObjectHideFlags: 0
@@ -1145,6 +1147,7 @@ MonoBehaviour:
   _endPoint: {fileID: 228359815}
   _weight: 1
   _doesDroop: 0
+  _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
   - Axis: 8
@@ -1300,6 +1303,7 @@ MonoBehaviour:
   _endPoint: {fileID: 1161562564}
   _weight: 1
   _doesDroop: 0
+  _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
   - Axis: 8
@@ -1330,6 +1334,7 @@ MonoBehaviour:
   _endPoint: {fileID: 1161562571}
   _weight: 1
   _doesDroop: 0
+  _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
   - Axis: 8
@@ -1479,7 +1484,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1333107666
 Transform:
   m_ObjectHideFlags: 0
@@ -1735,6 +1740,7 @@ MonoBehaviour:
   _endPoint: {fileID: 1806679858}
   _weight: 1
   _doesDroop: 0
+  _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
   - Axis: 8

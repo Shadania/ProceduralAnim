@@ -75,6 +75,9 @@ public class Axon_Joint : MonoBehaviour
     [Tooltip("Will this bone droop according to gravity? Uses the weight param and the endpoint of the bone")]
     [SerializeField] private bool _doesDroop = true;
 
+    [Tooltip("Do you want this bone to gradually go places or IMMEDIATELY (and unrealistically) reach its target?")]
+    [SerializeField] private bool _doGradualMovement = true;
+
     [Tooltip("Do we or do we not care about the below degrees of freedom?")]
     [SerializeField] private bool _respectsLimits = true;
     [Tooltip("If not specified, system will assume there is no freedom to move on this axis. Can also only have one freedom degree per axis")]
@@ -108,13 +111,14 @@ public class Axon_Joint : MonoBehaviour
 
     private Vector3 _prevEulerAngles = new Vector3();
     private Vector3 _currEulerAngles = new Vector3();
+    public Vector3 CurrEulerAngles { get { return _currEulerAngles; } }
     [SerializeField] private Vector3 _idealEulerAngles = new Vector3();
     private float _currTwistAngle = 0.0f;
     [SerializeField] private float _idealTwistAngle = 0.0f;
     private Vector3 _origFwd = new Vector3();
-    public Vector3 OrigFwd { get { return _origFwd; } }
-    private Vector3 _origEndLocalPos = new Vector3();
-    public Vector3 OrigEndLocalPos { get { return _origEndLocalPos; } }
+    public Vector3 OrigFwd { get { return transform.parent ? transform.parent.rotation * _origFwd : _origFwd; } }
+    private Vector3 _origRootToEnd = new Vector3();
+    public Vector3 OrigRootToEnd { get { return transform.parent? transform.parent.rotation * _origRootToEnd : _origRootToEnd; } }
 
     private bool _checkLimits = false;
     private bool _hasMoved = false;
@@ -138,7 +142,7 @@ public class Axon_Joint : MonoBehaviour
 
         _currEulerAngles = _prevEulerAngles = _idealEulerAngles = transform.rotation.eulerAngles;
         _origFwd = transform.forward;
-        _origEndLocalPos = _endPoint.localPosition;
+        _origRootToEnd = _endPoint.position - transform.position;
     }
 
     #region Updating
@@ -154,7 +158,8 @@ public class Axon_Joint : MonoBehaviour
             return;
         _didLateUpdate = true;
 
-        UpdateRotationValues(); // THIS NEEDS TO ONLY BE DONE EXACTLY ONCE OR WE ARE GONNA HAVE ANGVEL DIFFS
+        if (_doGradualMovement)
+            UpdateRotationValues(); // THIS NEEDS TO ONLY BE DONE EXACTLY ONCE OR WE ARE GONNA HAVE ANGVEL DIFFS
 
         if (_hasMoved == false && _doesReturnToRest)
         {
@@ -185,8 +190,11 @@ public class Axon_Joint : MonoBehaviour
     public void DoFinalFixedUpdate()
     {
         // apply the newest rotation
-        transform.localRotation = Quaternion.Euler(_currEulerAngles) * Quaternion.AngleAxis(_currTwistAngle, EndPoint.localPosition);
-        _prevEulerAngles = _currEulerAngles;
+        if (_doGradualMovement)
+        {
+            transform.rotation = Quaternion.Euler(_currEulerAngles) * Quaternion.AngleAxis(_currTwistAngle, EndPoint.localPosition);
+            _prevEulerAngles = _currEulerAngles;
+        }
     }
     #endregion Updating
 
@@ -295,7 +303,7 @@ public class Axon_Joint : MonoBehaviour
     {
         dir = dir.normalized;
 
-        Debug.Log($"({dir.x.ToString()},{dir.y.ToString()},{dir.z.ToString()})");
+        // Debug.Log($"({dir.x.ToString()},{dir.y.ToString()},{dir.z.ToString()})");
         // Angles on planes XY, YZ, XZ
         Vector3 rotation = new Vector3();
 
@@ -333,8 +341,8 @@ public class Axon_Joint : MonoBehaviour
                         else
                         {
                             // Check which axis is closest to the point
-                            float distY = Axon_Utils.DistPointToLine(transform.position + dir, new Vector3(0, 1, 0), transform.position);
-                            float distZ = Axon_Utils.DistPointToLine(transform.position + dir, new Vector3(0, 0, 1), transform.position);
+                            float distY = Vector3.Angle(dir, new Vector3(0, 1, 0));
+                            float distZ = Vector3.Angle(dir, new Vector3(0, 0, 1));
 
                             if (distY < distZ)
                             {
@@ -360,8 +368,8 @@ public class Axon_Joint : MonoBehaviour
                         else
                         {
                             // Check which axis is closest to the point
-                            float distX = Axon_Utils.DistPointToLine(transform.position + dir, new Vector3(1, 0, 0), transform.position);
-                            float distZ = Axon_Utils.DistPointToLine(transform.position + dir, new Vector3(0, 0, 1), transform.position);
+                            float distX = Vector3.Angle(dir, new Vector3(1, 0, 0));
+                            float distZ = Vector3.Angle(dir, new Vector3(0, 0, 1));
 
                             if (distX < distZ)
                             {
@@ -386,15 +394,15 @@ public class Axon_Joint : MonoBehaviour
                         else
                         {
                             // Check which axis is closest to the point
-                            float distX = Axon_Utils.DistPointToLine(dir + transform.position, new Vector3(1, 0, 0), transform.position);
-                            float distY = Axon_Utils.DistPointToLine(dir + transform.position, new Vector3(0, 1, 0), transform.position);
+                            float distX = Vector3.Angle(dir, new Vector3(1, 0, 0));
+                            float distY = Vector3.Angle(dir, new Vector3(0, 1, 0));
 
                             if (distX < distY)
                             {
                                 if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
                             }
                             else
-                            { 
+                            {
                                 if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
                             }
                         }
@@ -407,9 +415,7 @@ public class Axon_Joint : MonoBehaviour
         {
             rotation.z = fwdTwistAngle.Value;
         }
-
-        Debug.Log(rotation.ToString());
-
+        
         _idealEulerAngles = rotation;
     }
     public void EulerTwist(float degrees)
