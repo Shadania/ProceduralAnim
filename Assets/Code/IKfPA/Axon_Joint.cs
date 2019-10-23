@@ -110,11 +110,13 @@ public class Axon_Joint : MonoBehaviour
     private Vector3 _prevVelocity = new Vector3();
 
     private Vector3 _prevEulerAngles = new Vector3();
-    private Vector3 _currEulerAngles = new Vector3();
+    [SerializeField] private Vector3 _currEulerAngles = new Vector3();
     public Vector3 CurrEulerAngles { get { return _currEulerAngles; } }
     [SerializeField] private Vector3 _idealEulerAngles = new Vector3();
-    private float _currTwistAngle = 0.0f;
+    public Vector3 IdealEulerAngles { get { return _idealEulerAngles; } }
+    [SerializeField] private float _currTwistAngle = 0.0f;
     [SerializeField] private float _idealTwistAngle = 0.0f;
+    public float IdealTwistAngle { get { return _idealTwistAngle; } }
     private Vector3 _origFwd = new Vector3();
     public Vector3 OrigFwd { get { return transform.parent ? transform.parent.rotation * _origFwd : _origFwd; } }
     private Vector3 _origRootToEnd = new Vector3();
@@ -180,6 +182,7 @@ public class Axon_Joint : MonoBehaviour
         if (_checkLimits && _respectsLimits)
         {
             CheckLimits(ref _currEulerAngles);
+            CheckTwist(ref _currTwistAngle);
             _checkLimits = false;
         }
 
@@ -192,7 +195,7 @@ public class Axon_Joint : MonoBehaviour
         // apply the newest rotation
         if (_doGradualMovement)
         {
-            transform.rotation = Quaternion.Euler(_currEulerAngles) * Quaternion.AngleAxis(_currTwistAngle, EndPoint.localPosition);
+            transform.localRotation = Quaternion.AngleAxis(_currTwistAngle, _endPoint.localPosition) * Quaternion.Euler(_currEulerAngles);
             _prevEulerAngles = _currEulerAngles;
         }
     }
@@ -311,8 +314,13 @@ public class Axon_Joint : MonoBehaviour
         rotation = rot.eulerAngles;
         
         // Limited Rotation Fixes
-        List<FreedomDegree.FreedomAxis> axes = new List<FreedomDegree.FreedomAxis>();
-        if ((axes = CheckLimits(ref rotation)).Count > 0)
+        List<FreedomDegree.FreedomAxis> axes = CheckLimits(ref rotation);
+
+        // we don't care about the twist here
+        if (axes.Contains(FreedomDegree.FreedomAxis.twist))
+            axes.Remove(FreedomDegree.FreedomAxis.twist);
+
+        if (axes.Count > 0)
         {
             // Is it all axes or just one or two
             if (axes.Count == 3)
@@ -420,6 +428,7 @@ public class Axon_Joint : MonoBehaviour
     }
     public void EulerTwist(float degrees)
     {
+        CheckTwist(ref degrees);
         _idealTwistAngle = degrees;
     }
 
@@ -484,7 +493,7 @@ public class Axon_Joint : MonoBehaviour
                     break;
                 case FreedomDegree.FreedomAxis.moveZ:
                     //TODO
-                    break;
+                    break;  
                 case FreedomDegree.FreedomAxis.rotX:
                     {
                         bool didChange = false;
@@ -510,8 +519,8 @@ public class Axon_Joint : MonoBehaviour
                             res.Add(FreedomDegree.FreedomAxis.rotX);
                         }
                     }
-
                     break;
+
                 case FreedomDegree.FreedomAxis.rotY:
                     {
                         bool didChange = false;
@@ -537,8 +546,8 @@ public class Axon_Joint : MonoBehaviour
                             res.Add(FreedomDegree.FreedomAxis.rotY);
                         }
                     }
-
                     break;
+
                 case FreedomDegree.FreedomAxis.rotZ:
                     {
                         bool didChange = false;
@@ -564,7 +573,6 @@ public class Axon_Joint : MonoBehaviour
                             res.Add(FreedomDegree.FreedomAxis.rotZ);
                         }
                     }
-
                     break;
             }
             usedAxes = usedAxes | (int)deg.Axis;
@@ -616,6 +624,46 @@ public class Axon_Joint : MonoBehaviour
             angles.z += 360;
 
         return res;
+    }
+    private bool CheckTwist(ref float twist)
+    {
+        foreach (var deg in _degreesOfFreedom)
+        {
+            if (deg.Axis == FreedomDegree.FreedomAxis.twist)
+            {
+                if (twist > 180)
+                    twist -= 360.0f;
+
+                bool didChange = false;
+
+                if (twist > deg.upperLim)
+                {
+                    twist = deg.upperLim;
+                    didChange = true;
+                }
+                else if (twist < deg.lowerLim)
+                {
+                    twist = deg.lowerLim;
+                    didChange = true;
+                }
+
+                if (didChange)
+                {
+                    if (twist > 180.0f)
+                        twist -= 360.0f;
+                    else if (twist < -180.0f)
+                        twist += 360.0f;
+                }
+
+                if (twist < 0.0f)
+                    twist += 360.0f;
+
+                return didChange;
+            }
+        }
+
+        twist = 0.0f;
+        return false;
     }
     private void ReturnToRest()
     {
@@ -756,7 +804,7 @@ public class Axon_Joint : MonoBehaviour
         }
         else if (diffRotX < 0.0f)
         {
-            _currEulerAngles.x += -Mathf.Min(Mathf.Abs(diffRotX), _rotSpeed);
+            _currEulerAngles.x -= Mathf.Min(-diffRotX, _rotSpeed);
             _checkLimits = true;
         }
 
@@ -781,7 +829,7 @@ public class Axon_Joint : MonoBehaviour
         }
         else if (diffRotY < 0.0f)
         {
-            _currEulerAngles.y += -Mathf.Min(Mathf.Abs(diffRotY), _rotSpeed);
+            _currEulerAngles.y -= Mathf.Min(-diffRotY, _rotSpeed);
             _checkLimits = true;
         }
 
@@ -801,17 +849,46 @@ public class Axon_Joint : MonoBehaviour
         }
         else if (diffRotZ < 0.0f)
         {
-            _currEulerAngles.z += -Mathf.Min(Mathf.Abs(diffRotZ), _rotSpeed);
+            _currEulerAngles.z -= Mathf.Min(-diffRotZ, _rotSpeed);
             _checkLimits = true;
         }
 
         // TWIST
         var diffTwist = _idealTwistAngle - _currTwistAngle;
-        _currTwistAngle += Mathf.Min(diffTwist, _rotSpeed);
+        if (Mathf.Abs(diffTwist) > 180.0f)
+        {
+            if (diffTwist > 0.0f)
+                diffTwist -= 360.0f;
+            else
+                diffTwist += 360.0f;
+        }
+        if (diffTwist > 0.0f)
+        {
+            _currTwistAngle += Mathf.Min(diffTwist, _rotSpeed);
+            _checkLimits = true;
+        }
+        else if (diffTwist < 0.0f)
+        {
+            _currTwistAngle -= Mathf.Min(-diffTwist, _rotSpeed);
+            _checkLimits = true;
+        }
     }
     #endregion
 
     #region Utility
+    public FreedomDegree? GetDegree(FreedomDegree.FreedomAxis axis)
+    {
+        foreach (var deg in _degreesOfFreedom)
+        {
+            if (deg.Axis == axis)
+                return deg;
+        }
 
+        return null;
+    }
+    public void SetIdealRot()
+    {
+        transform.localRotation = Quaternion.AngleAxis(_idealTwistAngle, _endPoint.localPosition) * Quaternion.Euler(_idealEulerAngles);
+    }
     #endregion
 }

@@ -53,6 +53,11 @@ public sealed class Axon_System_SingleBone : Axon_System
                 Vector3 rotatedEndToFwd = rot * endToFwd;
                 Vector3 newFwd = rootToTargetNorm + rotatedEndToFwd;
 
+                if (_bone.transform.parent)
+                {
+                    newFwd = Quaternion.Inverse(_bone.transform.parent.rotation) * newFwd;
+                }
+
                 // The Joint will set this to a proper value anyway so it's safe to change
                 _bone.transform.rotation = Quaternion.LookRotation(newFwd);
                 Vector3 rootToEnd = _bone.EndPoint.position - rootPos;

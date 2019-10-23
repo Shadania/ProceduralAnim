@@ -88,6 +88,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2196964169907463503}
+  - component: {fileID: 2468700399216987404}
   m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
@@ -109,6 +110,19 @@ Transform:
   m_Father: {fileID: 5787267721005261661}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2468700399216987404
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4869017960404969950}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d650bc4504195b4b9f462d86f35327a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _currWorldPos: {x: 0, y: 0, z: 0}
 --- !u!1 &7812835393331110780
 GameObject:
   m_ObjectHideFlags: 0
@@ -157,21 +171,28 @@ MonoBehaviour:
   _endPoint: {fileID: 2196964169907463503}
   _weight: 1
   _doesDroop: 1
+  _doGradualMovement: 1
+  _respectsLimits: 1
   _degreesOfFreedom:
   - Axis: 8
-    minAmt: 0
-    maxAmt: 45
+    lowerLim: 0
+    upperLim: 0
     restingAmt: 0
   - Axis: 16
-    minAmt: 0
-    maxAmt: 45
+    lowerLim: 0
+    upperLim: 0
     restingAmt: 0
   - Axis: 32
-    minAmt: 0
-    maxAmt: 45
+    lowerLim: 0
+    upperLim: 0
     restingAmt: 0
   _name: Bone
   _rotSpeed: 5
+  _doesReturnToRest: 1
   _returnToRestSpeed: 1
   _doesSmoothMotion: 0
   _smoothMotionRate: 0.5
+  _currEulerAngles: {x: 0, y: 0, z: 0}
+  _idealEulerAngles: {x: 0, y: 0, z: 0}
+  _currTwistAngle: 0
+  _idealTwistAngle: 0
