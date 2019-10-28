@@ -99,6 +99,8 @@ public class Axon_Joint : MonoBehaviour
     [Tooltip("How fast does it catch up with targetpos? (0: not at all, 1: does not lag at all)")]
     [SerializeField] private float _smoothMotionRate = 0.5f;
 
+    [SerializeField] private float _angularAccuracy = 0.01f;
+
     [Header("Mainly for monitoring, is safe to change")]
 
     private bool _valid = false;
@@ -196,6 +198,12 @@ public class Axon_Joint : MonoBehaviour
         if (_doGradualMovement)
         {
             transform.localRotation = Quaternion.AngleAxis(_currTwistAngle, _endPoint.localPosition) * Quaternion.Euler(_currEulerAngles);
+            // Debug.Log((_endPoint.position - transform.position).normalized.ToString());
+            // transform.localRotation = Quaternion.AngleAxis(_currTwistAngle, _endPoint.position - transform.position) * Quaternion.Euler(_currEulerAngles);
+
+            Vector3 actualTwistAngleIHope = (_endPoint.position - transform.position).normalized;
+            Debug.Log($"Bone {_name}'s twist axis: {actualTwistAngleIHope.x}, {actualTwistAngleIHope.y}, {actualTwistAngleIHope.z}");
+
             _prevEulerAngles = _currEulerAngles;
         }
     }
@@ -305,9 +313,7 @@ public class Axon_Joint : MonoBehaviour
     public void EulerLookDirection(Vector3 dir, float? fwdTwistAngle)
     {
         dir = dir.normalized;
-
-        // Debug.Log($"({dir.x.ToString()},{dir.y.ToString()},{dir.z.ToString()})");
-        // Angles on planes XY, YZ, XZ
+        
         Vector3 rotation = new Vector3();
 
         Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
@@ -430,6 +436,137 @@ public class Axon_Joint : MonoBehaviour
     {
         CheckTwist(ref degrees);
         _idealTwistAngle = degrees;
+    }
+
+    public void EulerLookDirWithTwist(Vector3 dir, float fwdTwistAngle)
+    {
+        // when is this function called?
+        // -> orienting a bone towards dir: twist is incorporated into the bone it affects
+        // what should it do?
+        // -> set the rotation and twist to point at dir respecting limits
+
+        
+        dir = dir.normalized;
+        Vector3 rotation = new Vector3();
+
+        // unlimited rotation: need to limit before joint can use
+        Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
+        rotation = rot.eulerAngles;
+
+        // limit rotation & save limited axes
+        List<FreedomDegree.FreedomAxis> axes = CheckLimits(ref rotation);
+
+        // should calc twist here?
+
+        // we don't care about the twist here
+        if (axes.Contains(FreedomDegree.FreedomAxis.twist))
+            axes.Remove(FreedomDegree.FreedomAxis.twist);
+
+        if (axes.Count > 0)
+        {
+            // Is it all axes or just one or two
+            if (axes.Count == 3)
+            {
+                // There is nothing to be done if everything is at their limits already
+                _idealEulerAngles = rotation;
+                return;
+            }
+
+
+            // Check which axes are not okay, and find a way to still reach the destination without them
+            foreach (var axis in axes)
+            {
+                switch (axis)
+                {
+                    case FreedomDegree.FreedomAxis.rotX:
+
+                        if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
+                        {
+                            if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotZ))
+                        {
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else
+                        {
+                            // Check which axis is closest to the point
+                            float distY = Vector3.Angle(dir, new Vector3(0, 1, 0));
+                            float distZ = Vector3.Angle(dir, new Vector3(0, 0, 1));
+
+                            if (distY < distZ)
+                            {
+                                if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                            else
+                            {
+                                if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                        }
+
+                        break;
+                    case FreedomDegree.FreedomAxis.rotY:
+
+                        if (axes.Contains(FreedomDegree.FreedomAxis.rotZ))
+                        {
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
+                        {
+                            if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else
+                        {
+                            // Check which axis is closest to the point
+                            float distX = Vector3.Angle(dir, new Vector3(1, 0, 0));
+                            float distZ = Vector3.Angle(dir, new Vector3(0, 0, 1));
+
+                            if (distX < distZ)
+                            {
+                                if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                            else
+                            {
+                                if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                        }
+
+                        break;
+                    case FreedomDegree.FreedomAxis.rotZ:
+                        if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
+                        {
+                            if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
+                        {
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                        }
+                        else
+                        {
+                            // Check which axis is closest to the point
+                            float distX = Vector3.Angle(dir, new Vector3(1, 0, 0));
+                            float distY = Vector3.Angle(dir, new Vector3(0, 1, 0));
+
+                            if (distX < distY)
+                            {
+                                if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                            else
+                            {
+                                if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+
+        //if (fwdTwistAngle.HasValue)
+        //{
+        //    rotation.z = fwdTwistAngle.Value;
+        //}
+
+        _idealEulerAngles = rotation;
     }
 
     private List<FreedomDegree.FreedomAxis> RotateAroundX(ref Vector3 rotation, Vector3 dir)
@@ -790,87 +927,94 @@ public class Axon_Joint : MonoBehaviour
 
         // X ANGLE
         float diffRotX = _idealEulerAngles.x - _currEulerAngles.x;
-        if (Mathf.Abs(diffRotX) > 180.0f)
+        if (Mathf.Abs(diffRotX) > _angularAccuracy)
         {
+            if (Mathf.Abs(diffRotX) > 180.0f)
+            {
+                if (diffRotX > 0.0f)
+                    diffRotX -= 360.0f;
+                else
+                    diffRotX += 360.0f;
+            }
             if (diffRotX > 0.0f)
-                diffRotX -= 360.0f;
-            else
-                diffRotX += 360.0f;
-        }
-        if (diffRotX > 0.0f)
-        {
-            _currEulerAngles.x += Mathf.Min(diffRotX, _rotSpeed);
-            _checkLimits = true;
-        }
-        else if (diffRotX < 0.0f)
-        {
-            _currEulerAngles.x -= Mathf.Min(-diffRotX, _rotSpeed);
-            _checkLimits = true;
+            {
+                _currEulerAngles.x += Mathf.Min(diffRotX, _rotSpeed);
+                _checkLimits = true;
+            }
+            else if (diffRotX < 0.0f)
+            {
+                _currEulerAngles.x -= Mathf.Min(-diffRotX, _rotSpeed);
+                _checkLimits = true;
+            }
         }
 
         // Y ANGLE
         float diffRotY = _idealEulerAngles.y - _currEulerAngles.y;
-        if (Mathf.Abs(diffRotY) > 180.0f)
+        if (Mathf.Abs(diffRotY) > _angularAccuracy)
         {
+            if (Mathf.Abs(diffRotY) > 180.0f)
+            {
+                if (diffRotY > 0.0f)
+                    diffRotY -= 360.0f;
+                else
+                    diffRotY += 360.0f;
+            }
             if (diffRotY > 0.0f)
-                diffRotY -= 360.0f;
-            else
-                diffRotY += 360.0f;
-        }
-        else if (Mathf.Abs(diffRotY) == 180.0f)
-        {
-            // this happens sometimes.
-
-        }
-        if (diffRotY > 0.0f)
-        {
-            _currEulerAngles.y += Mathf.Min(diffRotY, _rotSpeed);
-            _checkLimits = true;
-        }
-        else if (diffRotY < 0.0f)
-        {
-            _currEulerAngles.y -= Mathf.Min(-diffRotY, _rotSpeed);
-            _checkLimits = true;
+            {
+                _currEulerAngles.y += Mathf.Min(diffRotY, _rotSpeed);
+                _checkLimits = true;
+            }
+            else if (diffRotY < 0.0f)
+            {
+                _currEulerAngles.y -= Mathf.Min(-diffRotY, _rotSpeed);
+                _checkLimits = true;
+            }
         }
 
         // Z ANGLE
         float diffRotZ = _idealEulerAngles.z - _currEulerAngles.z;
-        if (Mathf.Abs(diffRotZ) > 180.0f)
+        if (Mathf.Abs(diffRotZ) > _angularAccuracy)
         {
+            if (Mathf.Abs(diffRotZ) > 180.0f)
+            {
+                if (diffRotZ > 0.0f)
+                    diffRotZ -= 360.0f;
+                else
+                    diffRotZ += 360.0f;
+            }
             if (diffRotZ > 0.0f)
-                diffRotZ -= 360.0f;
-            else
-                diffRotZ += 360.0f;
-        }
-        if (diffRotZ > 0.0f)
-        {
-            _currEulerAngles.z += Mathf.Min(diffRotZ, _rotSpeed);
-            _checkLimits = true;
-        }
-        else if (diffRotZ < 0.0f)
-        {
-            _currEulerAngles.z -= Mathf.Min(-diffRotZ, _rotSpeed);
-            _checkLimits = true;
+            {
+                _currEulerAngles.z += Mathf.Min(diffRotZ, _rotSpeed);
+                _checkLimits = true;
+            }
+            else if (diffRotZ < 0.0f)
+            {
+                _currEulerAngles.z -= Mathf.Min(-diffRotZ, _rotSpeed);
+                _checkLimits = true;
+            }
         }
 
         // TWIST
         var diffTwist = _idealTwistAngle - _currTwistAngle;
-        if (Mathf.Abs(diffTwist) > 180.0f)
+        if (Mathf.Abs(diffTwist) > _angularAccuracy)
         {
+            if (Mathf.Abs(diffTwist) > 180.0f)
+            {
+                if (diffTwist > 0.0f)
+                    diffTwist -= 360.0f;
+                else
+                    diffTwist += 360.0f;
+            }
             if (diffTwist > 0.0f)
-                diffTwist -= 360.0f;
-            else
-                diffTwist += 360.0f;
-        }
-        if (diffTwist > 0.0f)
-        {
-            _currTwistAngle += Mathf.Min(diffTwist, _rotSpeed);
-            _checkLimits = true;
-        }
-        else if (diffTwist < 0.0f)
-        {
-            _currTwistAngle -= Mathf.Min(-diffTwist, _rotSpeed);
-            _checkLimits = true;
+            {
+                _currTwistAngle += Mathf.Min(diffTwist, _rotSpeed);
+                _checkLimits = true;
+            }
+            else if (diffTwist < 0.0f)
+            {
+                _currTwistAngle -= Mathf.Min(-diffTwist, _rotSpeed);
+                _checkLimits = true;
+            }
         }
     }
     #endregion
