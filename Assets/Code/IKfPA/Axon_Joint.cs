@@ -445,7 +445,7 @@ public class Axon_Joint : MonoBehaviour
     private List<FreedomDegree.FreedomAxis> RotateAroundZ(ref Vector3 rotation, Vector3 dir)
     {
         rotation.z = Mathf.Atan2(-dir.x, dir.y) * Mathf.Rad2Deg;
-        Debug.Log($"Trying to rotate {rotation.z.ToString()} degrees on Z");
+        // Debug.Log($"Trying to rotate {rotation.z.ToString()} degrees on Z");
         return CheckLimits(ref rotation);
     }
     #endregion
