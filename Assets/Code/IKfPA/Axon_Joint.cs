@@ -119,10 +119,17 @@ public class Axon_Joint : MonoBehaviour
     [SerializeField] private float _currTwistAngle = 0.0f;
     [SerializeField] private float _idealTwistAngle = 0.0f;
     public float IdealTwistAngle { get { return _idealTwistAngle; } }
+
     private Vector3 _origFwd = new Vector3();
     public Vector3 OrigFwd { get { return transform.parent ? transform.parent.rotation * _origFwd : _origFwd; } }
+    private Vector3 _origUp = new Vector3();
+    public Vector3 OrigUp { get { return transform.parent ? transform.parent.rotation * _origUp : _origUp; } }
+    private Vector3 _origRight = new Vector3();
+    public Vector3 OrigRight { get { return _origRight; } }
+
     private Vector3 _origRootToEnd = new Vector3();
     public Vector3 OrigRootToEnd { get { return transform.parent? transform.parent.rotation * _origRootToEnd : _origRootToEnd; } }
+    public Vector3 BoneTwistAxis { get { return (_endPoint.position - transform.position).normalized; } }
 
     private bool _checkLimits = false;
     private bool _hasMoved = false;
@@ -147,6 +154,8 @@ public class Axon_Joint : MonoBehaviour
         _currEulerAngles = _prevEulerAngles = _idealEulerAngles = transform.rotation.eulerAngles;
         _origFwd = transform.forward;
         _origRootToEnd = _endPoint.position - transform.position;
+        _origUp = transform.up;
+        _origRight = transform.right;
     }
 
     #region Updating
@@ -197,13 +206,10 @@ public class Axon_Joint : MonoBehaviour
         // apply the newest rotation
         if (_doGradualMovement)
         {
-            transform.localRotation = Quaternion.AngleAxis(_currTwistAngle, _endPoint.localPosition) * Quaternion.Euler(_currEulerAngles);
-            // Debug.Log((_endPoint.position - transform.position).normalized.ToString());
-            // transform.localRotation = Quaternion.AngleAxis(_currTwistAngle, _endPoint.position - transform.position) * Quaternion.Euler(_currEulerAngles);
-
-            Vector3 actualTwistAngleIHope = (_endPoint.position - transform.position).normalized;
-            Debug.Log($"Bone {_name}'s twist axis: {actualTwistAngleIHope.x}, {actualTwistAngleIHope.y}, {actualTwistAngleIHope.z}");
-
+            // not needed: seems correct enough
+            // Debug.Log($"Bone {_name}'s twist axis: {twistAxis.x}, {twistAxis.y}, {twistAxis.z}");
+            transform.localRotation = Quaternion.AngleAxis(_currTwistAngle, BoneTwistAxis) * Quaternion.Euler(_currEulerAngles);
+            // old axis: _endpoint.localPosition
             _prevEulerAngles = _currEulerAngles;
         }
     }
@@ -429,7 +435,9 @@ public class Axon_Joint : MonoBehaviour
         {
             rotation.z = fwdTwistAngle.Value;
         }
-        
+
+        CheckLimits(ref rotation);
+
         _idealEulerAngles = rotation;
     }
     public void EulerTwist(float degrees)
@@ -1030,9 +1038,31 @@ public class Axon_Joint : MonoBehaviour
 
         return null;
     }
-    public void SetIdealRot()
+    public List<FreedomDegree> GetDegrees()
     {
-        transform.localRotation = Quaternion.AngleAxis(_idealTwistAngle, _endPoint.localPosition) * Quaternion.Euler(_idealEulerAngles);
+        return _degreesOfFreedom;
+    }
+    public List<FreedomDegree.FreedomAxis> GetFreeAxes()
+    {
+        List<FreedomDegree.FreedomAxis> result = new List<FreedomDegree.FreedomAxis>();
+
+        foreach (var deg in _degreesOfFreedom)
+        {
+            result.Add(deg.Axis);
+        }
+
+        return result;
+    }
+    public void SetIdealRot(bool withTwist = true)
+    {
+        if (withTwist)
+        {
+            transform.localRotation = Quaternion.AngleAxis(_idealTwistAngle, BoneTwistAxis) * Quaternion.Euler(_idealEulerAngles);
+        }
+        else
+        {
+            transform.localRotation = Quaternion.Euler(_idealEulerAngles);
+        }
     }
     #endregion
 }
