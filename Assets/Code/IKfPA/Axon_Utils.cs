@@ -51,4 +51,9 @@ public class Axon_Utils : MonoBehaviour
 
         return angle;
     }
+
+    public static void DetailedLogVec(Vector3 vec)
+    {
+        Debug.Log($"{vec.x}, {vec.y}, {vec.z}");
+    }
 }

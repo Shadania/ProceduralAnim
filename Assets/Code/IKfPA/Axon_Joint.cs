@@ -122,10 +122,11 @@ public class Axon_Joint : MonoBehaviour
 
     private Vector3 _origFwd = new Vector3();
     public Vector3 OrigFwd { get { return transform.parent ? transform.parent.rotation * _origFwd : _origFwd; } }
+    public Vector3 OrigFwdPure { get { return _origFwd; } }
     private Vector3 _origUp = new Vector3();
     public Vector3 OrigUp { get { return transform.parent ? transform.parent.rotation * _origUp : _origUp; } }
     private Vector3 _origRight = new Vector3();
-    public Vector3 OrigRight { get { return _origRight; } }
+    public Vector3 OrigRight { get { return transform.parent ? transform.parent.rotation * _origRight : _origRight; } }
 
     private Vector3 _origRootToEnd = new Vector3();
     public Vector3 OrigRootToEnd { get { return transform.parent? transform.parent.rotation * _origRootToEnd : _origRootToEnd; } }
@@ -318,8 +319,10 @@ public class Axon_Joint : MonoBehaviour
 
     public void EulerLookDirection(Vector3 dir, float? fwdTwistAngle)
     {
+        // dir = Quaternion.Inverse(GetTwistQuat()) * dir.normalized;
+
         dir = dir.normalized;
-        
+
         Vector3 rotation = new Vector3();
 
         Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
@@ -433,7 +436,7 @@ public class Axon_Joint : MonoBehaviour
         
         if (fwdTwistAngle.HasValue)
         {
-            rotation.z = fwdTwistAngle.Value;
+            rotation.z += fwdTwistAngle.Value;
         }
 
         CheckLimits(ref rotation);
@@ -580,6 +583,7 @@ public class Axon_Joint : MonoBehaviour
     private List<FreedomDegree.FreedomAxis> RotateAroundX(ref Vector3 rotation, Vector3 dir)
     {
         rotation.x = Mathf.Atan2(-dir.y, dir.z) * Mathf.Rad2Deg;
+        
         return CheckLimits(ref rotation);
     }
     private List<FreedomDegree.FreedomAxis> RotateAroundY(ref Vector3 rotation, Vector3 dir)
@@ -1057,12 +1061,16 @@ public class Axon_Joint : MonoBehaviour
     {
         if (withTwist)
         {
-            transform.localRotation = Quaternion.AngleAxis(_idealTwistAngle, BoneTwistAxis) * Quaternion.Euler(_idealEulerAngles);
+            transform.localRotation = GetTwistQuat() * Quaternion.Euler(_idealEulerAngles);
         }
         else
         {
             transform.localRotation = Quaternion.Euler(_idealEulerAngles);
         }
+    }
+    public Quaternion GetTwistQuat()
+    {
+        return Quaternion.AngleAxis(_idealTwistAngle, BoneTwistAxis);
     }
     #endregion
 }
