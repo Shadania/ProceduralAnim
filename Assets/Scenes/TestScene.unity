@@ -411,7 +411,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _target: {fileID: 1883513334}
-  _followsTarget: 0
+  _followsTarget: 1
   _name: TwoBoneTestSystemY
   _minAngleDiff: 1
   _baseBone: {fileID: 271132310}
@@ -803,11 +803,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
-        type: 3}
-      propertyPath: m_Name
-      value: Mesh
-      objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.size
@@ -856,12 +851,12 @@ PrefabInstance:
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[0].Axis
-      value: 16
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[1].Axis
-      value: 64
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
@@ -878,6 +873,11 @@ PrefabInstance:
       propertyPath: _endPoint
       value: 
       objectReference: {fileID: 85757107}
+    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
+        type: 3}
+      propertyPath: m_Name
+      value: Mesh
+      objectReference: {fileID: 0}
     - target: {fileID: 5787267721005261661, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: m_LocalRotation.x
@@ -973,7 +973,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &609392062
 Transform:
   m_ObjectHideFlags: 0
@@ -1092,11 +1092,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
-        type: 3}
-      propertyPath: m_Name
-      value: Mesh
-      objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.size
@@ -1175,7 +1170,12 @@ PrefabInstance:
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[0].Axis
-      value: 32
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
+        type: 3}
+      propertyPath: m_Name
+      value: Mesh
       objectReference: {fileID: 0}
     - target: {fileID: 5787267721005261661, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
@@ -1244,7 +1244,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 690438114}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.5, y: 0, z: 1.5}
+  m_LocalPosition: {x: 1.21, y: 0, z: 1.47}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1441922229}
@@ -1507,11 +1507,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
-        type: 3}
-      propertyPath: m_Name
-      value: Mesh
-      objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.size
@@ -1590,7 +1585,12 @@ PrefabInstance:
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[0].Axis
-      value: 8
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
+        type: 3}
+      propertyPath: m_Name
+      value: Mesh
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 3518612024555185875, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef, type: 3}
@@ -1795,7 +1795,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _target: {fileID: 1507210094}
-  _followsTarget: 1
+  _followsTarget: 0
   _name: LeftArmSys
   _minAngleDiff: 1
   _baseBone: {fileID: 1129789320}
@@ -1821,15 +1821,15 @@ MonoBehaviour:
   _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
-  - Axis: 8
+  - Axis: 4
     lowerLim: -60
     upperLim: 60
     restingAmt: 0
-  - Axis: 64
+  - Axis: 8
     lowerLim: -45
     upperLim: 90
     restingAmt: 0
-  - Axis: 32
+  - Axis: 2
     lowerLim: -60
     upperLim: 80
     restingAmt: 0
@@ -1980,7 +1980,7 @@ MonoBehaviour:
   _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
-  - Axis: 8
+  - Axis: 1
     lowerLim: 0
     upperLim: 160
     restingAmt: 0
@@ -2014,15 +2014,15 @@ MonoBehaviour:
   _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
-  - Axis: 8
+  - Axis: 1
     lowerLim: -140
     upperLim: 90
     restingAmt: 0
-  - Axis: 64
+  - Axis: 8
     lowerLim: -40
     upperLim: 25
     restingAmt: 0
-  - Axis: 32
+  - Axis: 4
     lowerLim: -35
     upperLim: 10
     restingAmt: 0
@@ -2050,7 +2050,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _target: {fileID: 1792635185}
-  _followsTarget: 0
+  _followsTarget: 1
   _name: LeftLegSys
   _minAngleDiff: 1
   _baseBone: {fileID: 1161562568}
@@ -2168,7 +2168,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1333107666
 Transform:
   m_ObjectHideFlags: 0
@@ -2638,11 +2638,11 @@ MonoBehaviour:
   _doGradualMovement: 1
   _respectsLimits: 1
   _degreesOfFreedom:
-  - Axis: 8
+  - Axis: 1
     lowerLim: -30
     upperLim: 30
     restingAmt: 0
-  - Axis: 32
+  - Axis: 4
     lowerLim: -30
     upperLim: 30
     restingAmt: 0
@@ -2765,11 +2765,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
-        type: 3}
-      propertyPath: m_Name
-      value: Mesh
-      objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.size
@@ -2818,12 +2813,12 @@ PrefabInstance:
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[0].Axis
-      value: 32
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[1].Axis
-      value: 64
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
@@ -2840,6 +2835,11 @@ PrefabInstance:
       propertyPath: _endPoint
       value: 
       objectReference: {fileID: 1927931274}
+    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
+        type: 3}
+      propertyPath: m_Name
+      value: Mesh
+      objectReference: {fileID: 0}
     - target: {fileID: 5787267721005261661, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: m_LocalRotation.y
@@ -3207,11 +3207,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
-        type: 3}
-      propertyPath: m_Name
-      value: Mesh
-      objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.size
@@ -3290,7 +3285,12 @@ PrefabInstance:
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[0].Axis
-      value: 16
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
+        type: 3}
+      propertyPath: m_Name
+      value: Mesh
       objectReference: {fileID: 0}
     - target: {fileID: 5787267721005261661, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
@@ -3671,7 +3671,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _target: {fileID: 787885887}
-  _followsTarget: 0
+  _followsTarget: 1
   _name: TwoBoneTestSystemX
   _minAngleDiff: 1
   _baseBone: {fileID: 2140584528}
@@ -3762,11 +3762,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
-        type: 3}
-      propertyPath: m_Name
-      value: Mesh
-      objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.size
@@ -3815,12 +3810,12 @@ PrefabInstance:
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[0].Axis
-      value: 8
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
       propertyPath: _degreesOfFreedom.Array.data[1].Axis
-      value: 64
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 2630281770403238951, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
         type: 3}
@@ -3837,6 +3832,11 @@ PrefabInstance:
       propertyPath: _endPoint
       value: 
       objectReference: {fileID: 264779275}
+    - target: {fileID: 2460643863515018229, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef,
+        type: 3}
+      propertyPath: m_Name
+      value: Mesh
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 45478c1ef0c6b9645bee5f2fbe6d47ef, type: 3}
 --- !u!4 &4332657335584470229 stripped

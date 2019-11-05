@@ -13,13 +13,10 @@ public struct FreedomDegree
 {
     public enum FreedomAxis
     {
-        moveX = 0x01,
-        moveY = 0x02,
-        moveZ = 0x04,
-        rotX = 0x08,
-        rotY = 0x10,
-        rotZ = 0x20,
-        twist = 0x40
+        rotX = 0x01,
+        rotY = 0x02,
+        rotZ = 0x04,
+        twist = 0x08
     }
     [SerializeField] public FreedomAxis Axis;
     [SerializeField] public float lowerLim;
@@ -302,21 +299,6 @@ public class Axon_Joint : MonoBehaviour
     #endregion
 
     #region Rotation
-    [System.Obsolete("This functionality is going to be outdated soon because of bad system architecture")]
-    public void Rotate(Quaternion targetRot, float remainingDegrees)
-    {
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, Mathf.Min(remainingDegrees * _rotSpeed, _maxAngularSpeed) * Time.deltaTime);
-        _checkLimits = true;
-        _didLateUpdate = false;
-    }
-    [System.Obsolete("This functionality is going to be outdated soon because of bad system architecture")]
-    public void RotateImmediate(Quaternion targetRot, float remainingDegrees)
-    {
-        Rotate(targetRot, remainingDegrees);
-        _hasMoved = true;
-        DoLateFixedUpdate();
-    }
-
     public void EulerLookDirection(Vector3 dir, float? fwdTwistAngle)
     {
         // dir = Quaternion.Inverse(GetTwistQuat()) * dir.normalized;
@@ -337,15 +319,47 @@ public class Axon_Joint : MonoBehaviour
 
         if (axes.Count > 0)
         {
-            // Is it all axes or just one or two
-            if (axes.Count == 3)
+            switch (axes.Count)
             {
-                // There is nothing to be done if everything is at their limits already
-                _idealEulerAngles = rotation;
-                return;
+                case 3:
+                    // There is nothing to be done if everything is at their limits already
+                    _idealEulerAngles = rotation;
+                    return;
+
+                case 2:
+
+                    if (axes.Contains(FreedomDegree.FreedomAxis.rotX) == false)
+                    {
+                        RotateOnlyX(ref rotation, dir);
+                    }
+                    else if (axes.Contains(FreedomDegree.FreedomAxis.rotY) == false)
+                    {
+                        RotateOnlyY(ref rotation, dir);
+                    }
+                    else
+                    {
+                        RotateOnlyZ(ref rotation, dir);
+                    }
+                    break;
+
+                case 1:
+                    if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
+                    {
+                        RotateNoX(ref rotation, dir);
+                    }
+                    else if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
+                    {
+                        RotateNoY(ref rotation, dir);
+                    }
+                    else
+                    {
+                        RotateNoZ(ref rotation, dir);
+                    }
+                    break;
             }
 
-            
+            /*
+
             // Check which axes are not okay, and find a way to still reach the destination without them
             foreach (var axis in axes)
             {
@@ -355,11 +369,11 @@ public class Axon_Joint : MonoBehaviour
 
                         if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
                         {
-                            if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                            if (RotateAroundZ(ref rotation, dir).Count == 0) { }
                         }
                         else if (axes.Contains(FreedomDegree.FreedomAxis.rotZ))
                         {
-                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { }
                         }
                         else
                         {
@@ -369,11 +383,11 @@ public class Axon_Joint : MonoBehaviour
 
                             if (distY < distZ)
                             {
-                                if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                                if (RotateAroundY(ref rotation, dir).Count == 0) { }
                             }
                             else
                             {
-                                if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                                if (RotateAroundZ(ref rotation, dir).Count == 0) { }
                             }
                         }
 
@@ -382,11 +396,11 @@ public class Axon_Joint : MonoBehaviour
 
                         if (axes.Contains(FreedomDegree.FreedomAxis.rotZ))
                         {
-                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { }
                         }
                         else if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
                         {
-                            if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                            if (RotateAroundZ(ref rotation, dir).Count == 0) { }
                         }
                         else
                         {
@@ -396,11 +410,11 @@ public class Axon_Joint : MonoBehaviour
 
                             if (distX < distZ)
                             {
-                                if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                                if (RotateAroundX(ref rotation, dir).Count == 0) { }
                             }
                             else
                             {
-                                if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
+                                if (RotateAroundZ(ref rotation, dir).Count == 0) { }
                             }
                         }
 
@@ -408,11 +422,11 @@ public class Axon_Joint : MonoBehaviour
                     case FreedomDegree.FreedomAxis.rotZ:
                         if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
                         {
-                            if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                            if (RotateAroundY(ref rotation, dir).Count == 0) { }
                         }
                         else if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
                         {
-                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                            if (RotateAroundX(ref rotation, dir).Count == 0) { }
                         }
                         else
                         {
@@ -422,21 +436,23 @@ public class Axon_Joint : MonoBehaviour
 
                             if (distX < distY)
                             {
-                                if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
+                                if (RotateAroundX(ref rotation, dir).Count == 0) { }
                             }
                             else
                             {
-                                if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
+                                if (RotateAroundY(ref rotation, dir).Count == 0) { }
                             }
                         }
                         break;
                 }
             }
+
+            */
         }
         
         if (fwdTwistAngle.HasValue)
         {
-            rotation.z += fwdTwistAngle.Value;
+            rotation.z = fwdTwistAngle.Value;
         }
 
         CheckLimits(ref rotation);
@@ -448,153 +464,127 @@ public class Axon_Joint : MonoBehaviour
         CheckTwist(ref degrees);
         _idealTwistAngle = degrees;
     }
+    
+    // Unity's order of rotations is ZXY
 
-    public void EulerLookDirWithTwist(Vector3 dir, float fwdTwistAngle)
+    // A "blocked axis" can be both an axis that was not available to begin with or an axis that reached its limit
+
+    private void HandleNotNullRotation(ref Vector3 rotation, ref Vector3 dir)
     {
-        // when is this function called?
-        // -> orienting a bone towards dir: twist is incorporated into the bone it affects
-        // what should it do?
-        // -> set the rotation and twist to point at dir respecting limits
-
+        if (Mathf.Approximately(rotation.x, 360.0f))
+            rotation.x = 0.0f;
+        if (Mathf.Approximately(rotation.y, 360.0f))
+            rotation.y = 0.0f;
+        if (Mathf.Approximately(rotation.z, 360.0f))
+            rotation.z = 0.0f;
         
-        dir = dir.normalized;
-        Vector3 rotation = new Vector3();
-
-        // unlimited rotation: need to limit before joint can use
-        Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
-        rotation = rot.eulerAngles;
-
-        // limit rotation & save limited axes
-        List<FreedomDegree.FreedomAxis> axes = CheckLimits(ref rotation);
-
-        // should calc twist here?
-
-        // we don't care about the twist here
-        if (axes.Contains(FreedomDegree.FreedomAxis.twist))
-            axes.Remove(FreedomDegree.FreedomAxis.twist);
-
-        if (axes.Count > 0)
+        if (Axon_Utils.ApproxVec3(rotation, new Vector3(0,0,0), 0.001f) == false)
         {
-            // Is it all axes or just one or two
-            if (axes.Count == 3)
-            {
-                // There is nothing to be done if everything is at their limits already
-                _idealEulerAngles = rotation;
-                return;
-            }
-
-
-            // Check which axes are not okay, and find a way to still reach the destination without them
-            foreach (var axis in axes)
-            {
-                switch (axis)
-                {
-                    case FreedomDegree.FreedomAxis.rotX:
-
-                        if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
-                        {
-                            if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
-                        }
-                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotZ))
-                        {
-                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
-                        }
-                        else
-                        {
-                            // Check which axis is closest to the point
-                            float distY = Vector3.Angle(dir, new Vector3(0, 1, 0));
-                            float distZ = Vector3.Angle(dir, new Vector3(0, 0, 1));
-
-                            if (distY < distZ)
-                            {
-                                if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
-                            }
-                            else
-                            {
-                                if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
-                            }
-                        }
-
-                        break;
-                    case FreedomDegree.FreedomAxis.rotY:
-
-                        if (axes.Contains(FreedomDegree.FreedomAxis.rotZ))
-                        {
-                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
-                        }
-                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
-                        {
-                            if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
-                        }
-                        else
-                        {
-                            // Check which axis is closest to the point
-                            float distX = Vector3.Angle(dir, new Vector3(1, 0, 0));
-                            float distZ = Vector3.Angle(dir, new Vector3(0, 0, 1));
-
-                            if (distX < distZ)
-                            {
-                                if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
-                            }
-                            else
-                            {
-                                if (RotateAroundZ(ref rotation, dir).Count == 0) { /* Success */ }
-                            }
-                        }
-
-                        break;
-                    case FreedomDegree.FreedomAxis.rotZ:
-                        if (axes.Contains(FreedomDegree.FreedomAxis.rotX))
-                        {
-                            if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
-                        }
-                        else if (axes.Contains(FreedomDegree.FreedomAxis.rotY))
-                        {
-                            if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
-                        }
-                        else
-                        {
-                            // Check which axis is closest to the point
-                            float distX = Vector3.Angle(dir, new Vector3(1, 0, 0));
-                            float distY = Vector3.Angle(dir, new Vector3(0, 1, 0));
-
-                            if (distX < distY)
-                            {
-                                if (RotateAroundX(ref rotation, dir).Count == 0) { /* Success */ }
-                            }
-                            else
-                            {
-                                if (RotateAroundY(ref rotation, dir).Count == 0) { /* Success */ }
-                            }
-                        }
-                        break;
-                }
-            }
+            Vector3 currDir = (Quaternion.Euler(rotation) * _origFwd).normalized;
+            Vector3 intermedDir = dir - currDir;
+            if (intermedDir.sqrMagnitude > 0.01f)
+                dir = (Quaternion.LookRotation(dir - currDir) * _origFwd).normalized;
         }
-
-        //if (fwdTwistAngle.HasValue)
-        //{
-        //    rotation.z = fwdTwistAngle.Value;
-        //}
-
-        _idealEulerAngles = rotation;
     }
-
-    private List<FreedomDegree.FreedomAxis> RotateAroundX(ref Vector3 rotation, Vector3 dir)
-    {
-        rotation.x = Mathf.Atan2(-dir.y, dir.z) * Mathf.Rad2Deg;
-        
-        return CheckLimits(ref rotation);
-    }
-    private List<FreedomDegree.FreedomAxis> RotateAroundY(ref Vector3 rotation, Vector3 dir)
+    private List<FreedomDegree.FreedomAxis> RotateNoX(ref Vector3 rotation, Vector3 dir)
     {
         rotation.y = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        rotation.z = Mathf.Atan2(-dir.x, dir.y) * Mathf.Rad2Deg;
+
+        // Following is the 3D rotation code that didn't get finished
+        /*
+        HandleNotNullRotation(ref rotation, ref dir); // TODO: PUT THIS IN ALL ROTATIONS
+
+        // to calc Z, we need to project dir onto the ZX plane
+        Vector3 projDir = new Vector3(dir.x, dir.y, 0.0f);
+        rotation.z = Vector3.SignedAngle(dir, projDir, new Vector3(0, 0, 1));
+
+        // to calc Y, we need to calc the angle between this projected dir and the X axis
+        rotation.y = Vector3.SignedAngle(projDir, new Vector3(1, 0, 0), new Vector3(0, 1, 0));
+        */
+
         return CheckLimits(ref rotation);
     }
-    private List<FreedomDegree.FreedomAxis> RotateAroundZ(ref Vector3 rotation, Vector3 dir)
+    private List<FreedomDegree.FreedomAxis> RotateNoY(ref Vector3 rotation, Vector3 dir)
+    {
+        rotation.x = Mathf.Atan2(-dir.y, dir.z) * Mathf.Rad2Deg;
+        rotation.z = Mathf.Atan2(-dir.x, dir.y) * Mathf.Rad2Deg;
+
+        // Following is the 3D rotation code that didn't get finished
+        /*
+        HandleNotNullRotation(ref rotation, ref dir);
+        
+        // to calc Z
+        Vector3 projDir = new Vector3(dir.x, dir.y, 0.0f);
+        rotation.z = Vector3.SignedAngle(dir, projDir, new Vector3(0, 0, 1));
+        
+        // to calc X, we need the angle between this projected dir and the y axis
+        rotation.x = Vector3.SignedAngle(projDir, new Vector3(0, 1, 0), new Vector3(1, 0, 0));
+        */
+
+        return CheckLimits(ref rotation);
+    }
+    private List<FreedomDegree.FreedomAxis> RotateNoZ(ref Vector3 rotation, Vector3 dir)
+    {
+        rotation.x = Mathf.Atan2(-dir.y, dir.z) * Mathf.Rad2Deg;
+        rotation.y = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        
+        // Following is the 3D rotation code that didn't get finished
+        /*
+        HandleNotNullRotation(ref rotation, ref dir);
+
+        // to calc X
+        Vector3 projDir = new Vector3(0.0f, dir.y, dir.z);
+        rotation.x = Vector3.SignedAngle(dir, projDir, new Vector3(1, 0, 0));
+
+        // to calc Y
+        rotation.y = Vector3.SignedAngle(projDir, new Vector3(1, 0, 0), new Vector3(0, 1, 0));
+        */
+
+        return CheckLimits(ref rotation);
+    }
+
+    private List<FreedomDegree.FreedomAxis> RotateOnlyX(ref Vector3 rotation, Vector3 dir)
+    {
+        rotation.x = Mathf.Atan2(-dir.y, dir.z) * Mathf.Rad2Deg;
+
+        // Following is the 3D rotation code that didn't get finished
+        /*
+        HandleNotNullRotation(ref rotation, ref dir);
+
+        // Vector3 projDir = new Vector3(0.0f, dir.y, dir.z);
+        Vector3 projDir = new Vector3(dir.x, 0.0f, dir.z);
+        rotation.x = Vector3.SignedAngle(projDir, dir, new Vector3(1, 0, 0));
+        */
+
+        return CheckLimits(ref rotation);
+    }
+    private List<FreedomDegree.FreedomAxis> RotateOnlyY(ref Vector3 rotation, Vector3 dir)
+    {
+        rotation.y = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+
+        // Following is the 3D rotation code that didn't get finished
+        /*
+        HandleNotNullRotation(ref rotation, ref dir);
+
+        Vector3 projDir = new Vector3(dir.x, dir.y, 0.0f);
+        rotation.y = Vector3.SignedAngle(projDir, dir, new Vector3(0, 1, 0));
+        */
+
+        return CheckLimits(ref rotation);
+    }
+    private List<FreedomDegree.FreedomAxis> RotateOnlyZ(ref Vector3 rotation, Vector3 dir)
     {
         rotation.z = Mathf.Atan2(-dir.x, dir.y) * Mathf.Rad2Deg;
-        // Debug.Log($"Trying to rotate {rotation.z.ToString()} degrees on Z");
+
+        // Following is the 3D rotation code that didn't get finished
+        /*
+        HandleNotNullRotation(ref rotation, ref dir);
+
+        Vector3 projDir = new Vector3(0.0f, dir.y, dir.z);
+        rotation.z = Vector3.SignedAngle(projDir, dir, new Vector3(0, 0, 1));
+        */
+
         return CheckLimits(ref rotation);
     }
     #endregion
@@ -634,15 +624,6 @@ public class Axon_Joint : MonoBehaviour
         {
             switch (deg.Axis)
             {
-                case FreedomDegree.FreedomAxis.moveX:
-                    //TODO
-                    break;
-                case FreedomDegree.FreedomAxis.moveY:
-                    //TODO
-                    break;
-                case FreedomDegree.FreedomAxis.moveZ:
-                    //TODO
-                    break;  
                 case FreedomDegree.FreedomAxis.rotX:
                     {
                         bool didChange = false;
@@ -729,7 +710,7 @@ public class Axon_Joint : MonoBehaviour
 
         var newPos = transform.position;
 
-        for (int i = 1; i < 0x40; i *= 2)
+        for (int i = 1; i <= 0x08; i *= 2)
         {
             var result = (FreedomDegree.FreedomAxis)(usedAxes & i);
             // We don't want to limit what we've already gone over
@@ -740,15 +721,6 @@ public class Axon_Joint : MonoBehaviour
 
             switch ((FreedomDegree.FreedomAxis)i)
             {
-                case FreedomDegree.FreedomAxis.moveX:
-                    newPos.x = _startingPos.localPos.x; // TODO
-                    break;
-                case FreedomDegree.FreedomAxis.moveY:
-                    newPos.y = _startingPos.localPos.y; // TODO
-                    break;
-                case FreedomDegree.FreedomAxis.moveZ:
-                    newPos.z = _startingPos.localPos.z; // TODO
-                    break;
                 case FreedomDegree.FreedomAxis.rotX:
                     angles.x = _startingPos.localRot.x;
                     res.Add(FreedomDegree.FreedomAxis.rotZ);
@@ -830,15 +802,6 @@ public class Axon_Joint : MonoBehaviour
         {
             switch (deg.Axis)
             {
-                case FreedomDegree.FreedomAxis.moveX:
-                    //TODO
-                    break;
-                case FreedomDegree.FreedomAxis.moveY:
-                    //TODO
-                    break;
-                case FreedomDegree.FreedomAxis.moveZ:
-                    //TODO
-                    break;
                 case FreedomDegree.FreedomAxis.rotX:
                     if (Mathf.Abs(newEulerAngles.x) > (deg.lowerLim + deg.restingAmt))
                     {
@@ -1071,6 +1034,14 @@ public class Axon_Joint : MonoBehaviour
     public Quaternion GetTwistQuat()
     {
         return Quaternion.AngleAxis(_idealTwistAngle, BoneTwistAxis);
+    }
+    private bool HasFreedom(FreedomDegree.FreedomAxis axis, float amt)
+    {
+        var deg = GetDegree(axis);
+        if (deg.HasValue == false)
+            return false;
+
+        return amt > deg.Value.upperLim || amt < deg.Value.lowerLim;
     }
     #endregion
 }
